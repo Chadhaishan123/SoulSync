@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+    font-family: 'Roca';
+    src: url('/fonts/Roca.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'Roca-Heavy-Italic';
+    src: url('/fonts/Roca-Heavy-Italic.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'rocaLt';
+    src: url('/fonts/RL.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'rocait';
+    src: url('/fonts/RI.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  @font-face {
+    font-family: 'galpike';
+    src: url('/fonts/Galpike.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  
+  @font-face {
+    font-family: 'mioge';
+    src: url('/fonts/Mioge.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+  
+  @font-face {
+    font-family: 'betofin';
+    src: url('/fonts/Betofin.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'tan';
+    src: url('/fonts/tan.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'hanoble';
+    src: url('/fonts/hanoble.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'rocaThin';
+    src: url('/fonts/rocaThin.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'rocaThI';
+    src: url('/fonts/rocaThI.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'halimun';
+    src: url('/fonts/Halimun.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Rspring';
+    src: url('/fonts/Fontspring-reg.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
+
+  @font-face {
+    font-family: 'Bspring';
+    src: url('/fonts/Fontspring-bold.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+  }
