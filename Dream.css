@@ -1,0 +1,15 @@
+.bg-custom {
+    background-image: url('/dream/bg.svg');
+    background-size: cover;
+    background-position: top center;
+    background-repeat: no-repeat;
+    height: 600px;
+    width: 100%;
+}
+
+
+@media screen and (max-width: 768px) {
+    .bg-custom {
+        height: 400px; 
+    }
+}

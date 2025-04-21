@@ -1,0 +1,6 @@
+.bg-custom{
+    background-image: url('/Detox/bg.svg');
+    background-size: cover;
+    background-position: center;
+    height: 100vh;
+}

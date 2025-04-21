@@ -1,0 +1,8 @@
+.help {
+    background: rgb(255,158,240);
+    background: -moz-linear-gradient(90deg, rgba(255,158,240,1) 0%, rgba(254,185,185,1) 18%, rgba(223,219,244,1) 55%);
+    background: -webkit-linear-gradient(90deg, rgba(255,158,240,1) 0%, rgba(254,185,185,1) 18%, rgba(223,219,244,1) 55%);
+    background: linear-gradient(90deg, rgba(255,158,240,1) 0%, rgba(254,185,185,1) 18%, rgba(223,219,244,1) 55%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#ff9ef0",endColorstr="#dfdbf4",GradientType=1);
+}
+

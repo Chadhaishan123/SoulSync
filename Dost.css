@@ -1,0 +1,7 @@
+.dost {
+    background: rgb(255,192,192);
+    background: -moz-radial-gradient(circle, rgba(255,192,192,1) 0%, rgba(255,169,201,1) 48%, rgba(227,141,222,1) 100%);
+    background: -webkit-radial-gradient(circle, rgba(255,192,192,1) 0%, rgba(255,169,201,1) 48%, rgba(227,141,222,1) 100%);
+    background: radial-gradient(circle, rgba(255,192,192,1) 0%, rgba(255,169,201,1) 48%, rgba(227,141,222,1) 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#ffc0c0",endColorstr="#e38dde",GradientType=1);
+}
