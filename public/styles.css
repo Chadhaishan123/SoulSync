@@ -445,6 +445,67 @@ textarea:focus {
   font-weight: 750;
 }
 
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.analysis-grid > div {
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.mini-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.score-list {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.score-row {
+  display: grid;
+  grid-template-columns: 86px 1fr 44px;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.score-track {
+  height: 9px;
+  overflow: hidden;
+  background: #ece6da;
+  border-radius: 999px;
+}
+
+.score-track span {
+  display: block;
+  height: 100%;
+  background: var(--primary);
+}
+
+details {
+  margin-top: 14px;
+  color: var(--muted);
+}
+
+summary {
+  color: var(--primary-dark);
+  cursor: pointer;
+  font-weight: 800;
+}
+
 .footer {
   padding: 24px clamp(18px, 4vw, 54px);
   color: var(--muted);
@@ -507,6 +568,11 @@ textarea:focus {
   }
 
   .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-grid,
+  .score-row {
     grid-template-columns: 1fr;
   }
 }

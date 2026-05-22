@@ -28,6 +28,51 @@
       "createdAt": "2026-05-20T19:00:00.000Z"
     }
   ],
+  "dreams": [
+    {
+      "id": "dream-1",
+      "title": "The bridge and the train",
+      "dream": "I was standing on a bridge at night while a train passed below. I felt nervous but also curious because there was a bright door at the end of the bridge.",
+      "sleepQuality": "Light sleep",
+      "wakingMood": "Curious",
+      "analysis": {
+        "wordCount": 24,
+        "dominantEmotion": "curiosity",
+        "emotionScores": {
+          "anxiety": 22,
+          "sadness": 16,
+          "anger": 13,
+          "joy": 18,
+          "curiosity": 31
+        },
+        "topThemes": [
+          "transition"
+        ],
+        "symbols": [
+          {
+            "symbol": "train",
+            "meaning": "direction, timing, momentum, or feeling carried by life"
+          },
+          {
+            "symbol": "door",
+            "meaning": "choice, opportunity, privacy, or a boundary"
+          },
+          {
+            "symbol": "bridge",
+            "meaning": "transition, repair, or crossing from one phase to another"
+          }
+        ],
+        "intensity": 7,
+        "interpretation": "This dream appears emotionally vivid, with curiosity as the strongest emotional signal and themes around transition. Symbols like train, door, bridge may point toward direction, timing, momentum, or feeling carried by life. Consider what part of waking life feels similar, then write one practical support step you can take today.",
+        "modelNotes": {
+          "nlp": "Tokenization, stop-word filtering, keyword extraction, and dream-symbol entity matching.",
+          "ml": "Weighted scoring classifies emotional tone, themes, and intensity from extracted features.",
+          "dl": "A small neural-style dense layer with sigmoid activations refines the emotion probabilities."
+        }
+      },
+      "createdAt": "2026-05-22T21:15:00.000Z"
+    }
+  ],
   "appointments": [
     {
       "id": "appointment-1",

@@ -2,6 +2,7 @@ const http = require("http");
 const fs = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
+const { analyzeDream } = require("./dreamAnalyzer");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -80,9 +81,11 @@ function buildDashboard(db) {
     averageMood,
     moodCount: db.moods.length,
     journalCount: db.journal.length,
+    dreamCount: (db.dreams || []).length,
     appointmentCount: db.appointments.length,
     nextAppointment: [...db.appointments].sort((a, b) => `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`))[0] || null,
     recentJournal: [...db.journal].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null,
+    recentDream: [...(db.dreams || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null,
     resources: db.resources.slice(0, 3)
   };
 }
@@ -136,6 +139,32 @@ async function handleApi(req, res, pathname) {
     };
 
     db.journal.push(entry);
+    await writeDb(db);
+    return sendJson(res, 201, entry);
+  }
+
+  if (req.method === "GET" && pathname === "/api/dreams") {
+    return sendJson(res, 200, [...(db.dreams || [])].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+  }
+
+  if (req.method === "POST" && pathname === "/api/dreams") {
+    const body = await readBody(req);
+    const missing = requiredFields(body, ["title", "dream"]);
+    if (missing.length) return sendError(res, 422, `Missing fields: ${missing.join(", ")}`);
+
+    const analysis = analyzeDream(body.dream);
+    const entry = {
+      id: createId("dream"),
+      title: String(body.title).trim(),
+      dream: String(body.dream).trim(),
+      sleepQuality: String(body.sleepQuality || "").trim(),
+      wakingMood: String(body.wakingMood || "").trim(),
+      analysis,
+      createdAt: new Date().toISOString()
+    };
+
+    db.dreams = db.dreams || [];
+    db.dreams.push(entry);
     await writeDb(db);
     return sendJson(res, 201, entry);
   }

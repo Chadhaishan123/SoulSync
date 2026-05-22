@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Dream Analyzer | Soul Sync</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark">S</span><span>Soul Sync</span></a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="dreams.html">Dreams</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a>
+      </nav>
+    </header>
+    <main class="container">
+      <section class="page-head">
+        <div>
+          <p class="eyebrow">NLP, ML, and neural scoring</p>
+          <h1>Dream analyzer</h1>
+          <p>Describe a dream and Soul Sync will extract symbols, classify emotional tone, estimate intensity, and save a reflection-friendly interpretation.</p>
+        </div>
+      </section>
+
+      <section class="split">
+        <form class="form-panel" id="dreamForm">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="title">Dream title</label>
+              <input id="title" name="title" placeholder="The train, the bridge, the bright door" required>
+            </div>
+            <div class="field">
+              <label for="sleepQuality">Sleep quality</label>
+              <select id="sleepQuality" name="sleepQuality">
+                <option>Deep sleep</option>
+                <option>Light sleep</option>
+                <option>Restless sleep</option>
+                <option>Interrupted sleep</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="wakingMood">Waking mood</label>
+              <select id="wakingMood" name="wakingMood">
+                <option>Calm</option>
+                <option>Curious</option>
+                <option>Anxious</option>
+                <option>Sad</option>
+                <option>Confused</option>
+                <option>Energized</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="dream">Dream description</label>
+              <textarea id="dream" name="dream" required placeholder="Write the dream in as much detail as you remember: people, places, symbols, emotions, colors, movement, and how it ended."></textarea>
+            </div>
+          </div>
+          <button class="button" type="submit">Analyze dream</button>
+          <p class="status" id="dreamStatus"></p>
+        </form>
+
+        <section>
+          <h2>Latest analysis</h2>
+          <div id="dreamResult" class="list" style="margin-top: 16px;">
+            <div class="empty">Your next dream analysis will appear here.</div>
+          </div>
+          <p class="notice" style="margin-top: 16px;">Dream analysis is reflective and educational. It is not diagnosis, therapy, or proof of hidden meaning.</p>
+        </section>
+      </section>
+
+      <section style="margin-top: 28px;">
+        <div class="page-head">
+          <div>
+            <h2>Saved dream analyses</h2>
+            <p>Review previous dreams and compare recurring symbols, emotions, and themes.</p>
+          </div>
+        </div>
+        <div class="list" id="dreamList"></div>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

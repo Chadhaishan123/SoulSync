@@ -66,6 +66,7 @@ async function initHome() {
   node.innerHTML = `
     <article class="card metric"><span>Mood check-ins</span><strong>${data.moodCount}</strong><p>Logged moments of awareness.</p></article>
     <article class="card metric"><span>Journal entries</span><strong>${data.journalCount}</strong><p>Private reflections saved.</p></article>
+    <article class="card metric"><span>Dream analyses</span><strong>${data.dreamCount || 0}</strong><p>NLP-assisted dream reflections.</p></article>
     <article class="card metric"><span>Bookings</span><strong>${data.appointmentCount}</strong><p>Support sessions requested.</p></article>
   `;
 }
@@ -78,6 +79,7 @@ async function initDashboard() {
     <article class="card metric"><span>Average mood</span><strong>${data.averageMood || "-"}/10</strong><p>Based on your saved check-ins.</p></article>
     <article class="card metric"><span>Latest mood</span><strong>${escapeHtml(data.latestMood?.mood || "New")}</strong><p>${data.latestMood ? fmtDate(data.latestMood.createdAt) : "Start with a quick check-in."}</p></article>
     <article class="card metric"><span>Journal</span><strong>${data.journalCount}</strong><p>Reflection entries created.</p></article>
+    <article class="card metric"><span>Dreams</span><strong>${data.dreamCount || 0}</strong><p>Dreams analyzed with NLP signals.</p></article>
     <article class="card metric"><span>Sessions</span><strong>${data.appointmentCount}</strong><p>Appointments in the system.</p></article>
   `;
 
@@ -89,6 +91,10 @@ async function initDashboard() {
     ? `<h3>${escapeHtml(data.recentJournal.title)}</h3><p>${escapeHtml(data.recentJournal.body)}</p><p class="meta">${fmtDate(data.recentJournal.createdAt)}</p>`
     : `<p class="empty">Your latest reflection will appear here.</p>`;
 
+  byId("recentDream").innerHTML = data.recentDream
+    ? `<h3>${escapeHtml(data.recentDream.title)}</h3><p>${escapeHtml(data.recentDream.analysis.interpretation)}</p><p class="meta">${fmtDate(data.recentDream.createdAt)}</p>`
+    : `<p class="empty">Analyze a dream to see it here.</p>`;
+
   renderList("recommendedResources", data.resources, (item) => `
     <article class="list-item">
       <h3>${escapeHtml(item.title)}</h3>
@@ -96,6 +102,71 @@ async function initDashboard() {
       <div class="tag-row"><span class="tag">${escapeHtml(item.category)}</span><span class="tag warn">${escapeHtml(item.readTime)}</span></div>
     </article>
   `);
+}
+
+async function initDreams() {
+  const form = byId("dreamForm");
+  if (!form) return;
+
+  function renderAnalysis(entry) {
+    const analysis = entry.analysis;
+    const symbols = analysis.symbols.length
+      ? analysis.symbols.map((item) => `<span class="tag">${escapeHtml(item.symbol)}</span>`).join("")
+      : `<span class="tag warn">No clear symbols</span>`;
+    const themes = analysis.topThemes.length
+      ? analysis.topThemes.map((theme) => `<span class="tag">${escapeHtml(theme)}</span>`).join("")
+      : `<span class="tag warn">reflective</span>`;
+    const emotions = Object.entries(analysis.emotionScores)
+      .map(([emotion, score]) => `
+        <div class="score-row">
+          <span>${escapeHtml(emotion)}</span>
+          <div class="score-track"><span style="width: ${Number(score)}%"></span></div>
+          <strong>${Number(score)}%</strong>
+        </div>
+      `).join("");
+
+    return `
+      <article class="list-item">
+        <h3>${escapeHtml(entry.title)}</h3>
+        <p>${escapeHtml(analysis.interpretation)}</p>
+        <div class="analysis-grid">
+          <div><span class="mini-label">Dominant emotion</span><strong>${escapeHtml(analysis.dominantEmotion)}</strong></div>
+          <div><span class="mini-label">Intensity</span><strong>${Number(analysis.intensity)}/10</strong></div>
+          <div><span class="mini-label">Word count</span><strong>${Number(analysis.wordCount)}</strong></div>
+        </div>
+        <div class="score-list">${emotions}</div>
+        <div class="tag-row">${themes}${symbols}</div>
+        <details>
+          <summary>Model details</summary>
+          <p>${escapeHtml(analysis.modelNotes.nlp)}</p>
+          <p>${escapeHtml(analysis.modelNotes.ml)}</p>
+          <p>${escapeHtml(analysis.modelNotes.dl)}</p>
+        </details>
+        <p class="meta">${escapeHtml(entry.sleepQuality || "Sleep quality not set")} | ${escapeHtml(entry.wakingMood || "Mood not set")} | ${fmtDate(entry.createdAt)}</p>
+      </article>
+    `;
+  }
+
+  async function load() {
+    const dreams = await api.get("/api/dreams");
+    renderList("dreamList", dreams, renderAnalysis, "No dreams analyzed yet.");
+  }
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = Object.fromEntries(new FormData(form));
+    try {
+      const entry = await api.send("/api/dreams", "POST", payload);
+      form.reset();
+      setStatus("dreamStatus", "Dream analyzed and saved.");
+      byId("dreamResult").innerHTML = renderAnalysis(entry);
+      await load();
+    } catch (error) {
+      setStatus("dreamStatus", error.message);
+    }
+  });
+
+  await load();
 }
 
 async function initMood() {
@@ -230,17 +301,19 @@ async function initProfile() {
 async function initAdmin() {
   const node = byId("adminOverview");
   if (!node) return;
-  const [dashboard, appointments, moods, journals] = await Promise.all([
+  const [dashboard, appointments, moods, journals, dreams] = await Promise.all([
     api.get("/api/dashboard"),
     api.get("/api/appointments"),
     api.get("/api/moods"),
-    api.get("/api/journal")
+    api.get("/api/journal"),
+    api.get("/api/dreams")
   ]);
 
   node.innerHTML = `
     <article class="card metric"><span>Total appointments</span><strong>${appointments.length}</strong><p>Booking requests stored.</p></article>
     <article class="card metric"><span>Mood entries</span><strong>${moods.length}</strong><p>Recent self check-ins.</p></article>
     <article class="card metric"><span>Journal entries</span><strong>${journals.length}</strong><p>Private reflections.</p></article>
+    <article class="card metric"><span>Dream analyses</span><strong>${dreams.length}</strong><p>Saved NLP outputs.</p></article>
     <article class="card metric"><span>Average mood</span><strong>${dashboard.averageMood || "-"}/10</strong><p>Across all demo data.</p></article>
   `;
 
@@ -259,6 +332,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initDashboard().catch(console.error);
   initMood().catch(console.error);
   initJournal().catch(console.error);
+  initDreams().catch(console.error);
   initResources().catch(console.error);
   initTherapists().catch(console.error);
   initProfile().catch(console.error);
