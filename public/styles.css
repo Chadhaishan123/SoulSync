@@ -1,5 +1,5 @@
 :root {
-  --bg: #f6f4ef;
+  --bg: #f4f1ea;
   --surface: #fffaf2;
   --surface-strong: #ffffff;
   --ink: #24302f;
@@ -8,10 +8,13 @@
   --primary: #25746a;
   --primary-dark: #18564e;
   --secondary: #9b5f3f;
+  --rose: #c96f68;
+  --gold: #d6a84f;
   --accent: #d2e8d8;
   --warning: #fff0c7;
   --danger: #9f2f37;
-  --shadow: 0 20px 45px rgba(36, 48, 47, 0.08);
+  --shadow: 0 20px 45px rgba(36, 48, 47, 0.1);
+  --shadow-hover: 0 28px 65px rgba(36, 48, 47, 0.16);
 }
 
 * {
@@ -19,12 +22,28 @@
 }
 
 body {
+  position: relative;
   margin: 0;
   min-height: 100vh;
   color: var(--ink);
-  background: var(--bg);
+  background:
+    radial-gradient(circle at 12% 8%, rgba(210, 232, 216, 0.82), transparent 28%),
+    radial-gradient(circle at 86% 18%, rgba(255, 240, 199, 0.88), transparent 26%),
+    linear-gradient(135deg, #f9f4ea 0%, #eef5ef 48%, #f7eee9 100%);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   line-height: 1.5;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(36, 48, 47, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(36, 48, 47, 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.65), transparent 72%);
 }
 
 a {
@@ -63,6 +82,11 @@ textarea {
   gap: 10px;
   font-size: 1.05rem;
   font-weight: 800;
+  transition: transform 180ms ease;
+}
+
+.brand:hover {
+  transform: translateY(-1px);
 }
 
 .brand-mark {
@@ -71,9 +95,10 @@ textarea {
   height: 36px;
   place-items: center;
   color: #ffffff;
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
   border-radius: 8px;
   font-weight: 900;
+  box-shadow: 0 12px 28px rgba(37, 116, 106, 0.26);
 }
 
 .nav {
@@ -84,23 +109,29 @@ textarea {
 }
 
 .nav a {
+  position: relative;
   padding: 8px 10px;
   color: var(--muted);
   border-radius: 8px;
   font-size: 0.94rem;
   font-weight: 650;
+  transition: color 180ms ease, background 180ms ease, transform 180ms ease;
 }
 
 .nav a:hover,
 .nav a.active {
   color: var(--primary-dark);
   background: var(--accent);
+  transform: translateY(-1px);
 }
 
 .container {
+  position: relative;
+  z-index: 1;
   width: min(1180px, calc(100% - 36px));
   margin: 0 auto;
   padding: 38px 0 56px;
+  animation: pageEnter 520ms ease both;
 }
 
 .hero {
@@ -131,6 +162,7 @@ h3 {
 h1 {
   max-width: 790px;
   font-size: clamp(2.55rem, 6vw, 5.75rem);
+  text-wrap: balance;
 }
 
 h2 {
@@ -161,6 +193,8 @@ p {
 }
 
 .button {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -172,10 +206,27 @@ p {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 800;
+  box-shadow: 0 12px 26px rgba(37, 116, 106, 0.2);
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.button::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+  transform: translateX(-120%);
+  transition: transform 520ms ease;
 }
 
 .button:hover {
   background: var(--primary-dark);
+  box-shadow: 0 16px 34px rgba(37, 116, 106, 0.28);
+  transform: translateY(-2px);
+}
+
+.button:hover::after {
+  transform: translateX(120%);
 }
 
 .button.secondary {
@@ -196,6 +247,7 @@ p {
 .hero-panel {
   display: grid;
   gap: 16px;
+  animation: floatIn 700ms ease 120ms both;
 }
 
 .wellness-visual {
@@ -208,6 +260,29 @@ p {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
+  transform-style: preserve-3d;
+  animation: softFloat 6s ease-in-out infinite;
+}
+
+.wellness-visual::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(135deg, rgba(37, 116, 106, 0.34), transparent 48%),
+    linear-gradient(to top, rgba(36, 48, 47, 0.42), transparent 52%);
+}
+
+.wellness-visual::after {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  left: 28px;
+  top: 28px;
+  border: 1px solid rgba(255, 250, 242, 0.55);
+  border-radius: 50%;
+  animation: pulseRing 4.8s ease-in-out infinite;
 }
 
 .visual-note {
@@ -220,6 +295,7 @@ p {
   border: 1px solid rgba(221, 215, 202, 0.9);
   border-radius: 8px;
   backdrop-filter: blur(12px);
+  animation: cardRise 680ms ease 260ms both;
 }
 
 .page-head {
@@ -259,10 +335,20 @@ p {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
 }
 
 .card {
   padding: 20px;
+  animation: cardRise 520ms ease both;
+}
+
+.card:hover,
+.form-panel:hover,
+.list-item:hover {
+  border-color: rgba(37, 116, 106, 0.34);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-4px);
 }
 
 .card h3 {
@@ -277,6 +363,10 @@ p {
 .metric strong {
   font-size: 2.15rem;
   line-height: 1;
+  background: linear-gradient(135deg, var(--primary-dark), var(--secondary));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .tag-row {
@@ -338,6 +428,7 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   outline: none;
+  transition: border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
 }
 
 textarea {
@@ -362,6 +453,8 @@ textarea:focus {
   background: var(--surface-strong);
   border: 1px solid var(--line);
   border-radius: 8px;
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+  animation: cardRise 420ms ease both;
 }
 
 .list-item .meta {
@@ -385,6 +478,7 @@ textarea:focus {
   padding: 22px;
   background: #fff7f2;
   border-color: #efd2c5;
+  animation: cardRise 540ms ease both;
 }
 
 .crisis-band strong {
@@ -403,6 +497,12 @@ textarea:focus {
   background: var(--surface-strong);
   border: 1px solid var(--line);
   border-radius: 8px;
+  transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.step:hover {
+  border-color: rgba(37, 116, 106, 0.34);
+  transform: translateX(4px);
 }
 
 .step::before {
@@ -493,6 +593,7 @@ textarea:focus {
   display: block;
   height: 100%;
   background: var(--primary);
+  animation: growBar 760ms ease both;
 }
 
 details {
@@ -504,6 +605,83 @@ summary {
   color: var(--primary-dark);
   cursor: pointer;
   font-weight: 800;
+}
+
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(22px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes softFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes pulseRing {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.92);
+  }
+  50% {
+    opacity: 0.78;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes growBar {
+  from {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+  to {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
 }
 
 .footer {
