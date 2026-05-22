@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mood Tracker | Soul Sync</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark">S</span><span>Soul Sync</span></a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a>
+      </nav>
+    </header>
+    <main class="container">
+      <section class="page-head">
+        <div>
+          <p class="eyebrow">Daily awareness</p>
+          <h1>Mood tracker</h1>
+          <p>Log how you feel, what may have influenced it, and what your body needed today.</p>
+        </div>
+      </section>
+      <section class="split">
+        <form class="form-panel" id="moodForm">
+          <div class="form-grid">
+            <div class="field">
+              <label for="mood">Mood</label>
+              <select id="mood" name="mood" required>
+                <option value="steady">Steady</option>
+                <option value="calm">Calm</option>
+                <option value="anxious">Anxious</option>
+                <option value="low">Low</option>
+                <option value="energized">Energized</option>
+                <option value="overwhelmed">Overwhelmed</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="intensity">Intensity 1-10</label>
+              <input id="intensity" name="intensity" type="number" min="1" max="10" value="6" required>
+            </div>
+            <div class="field">
+              <label for="sleep">Sleep hours</label>
+              <input id="sleep" name="sleep" type="number" min="0" max="16" step="0.5" value="7">
+            </div>
+            <div class="field">
+              <label for="trigger">Possible trigger</label>
+              <input id="trigger" name="trigger" placeholder="Work, exams, conflict, rest">
+            </div>
+            <div class="field full">
+              <label for="note">Note</label>
+              <textarea id="note" name="note" placeholder="What do you want to remember about this moment?"></textarea>
+            </div>
+          </div>
+          <button class="button" type="submit">Save check-in</button>
+          <p class="status" id="moodStatus"></p>
+        </form>
+        <section>
+          <h2>Recent moods</h2>
+          <div class="list" id="moodList" style="margin-top: 16px;"></div>
+        </section>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

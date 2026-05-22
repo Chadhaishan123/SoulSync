@@ -1,0 +1,107 @@
+{
+  "moods": [
+    {
+      "id": "mood-1",
+      "mood": "steady",
+      "intensity": 7,
+      "sleep": 7,
+      "trigger": "Finished a long study session",
+      "note": "Felt calmer after a short walk.",
+      "createdAt": "2026-05-20T09:30:00.000Z"
+    },
+    {
+      "id": "mood-2",
+      "mood": "anxious",
+      "intensity": 4,
+      "sleep": 5,
+      "trigger": "Deadlines",
+      "note": "Box breathing helped a little.",
+      "createdAt": "2026-05-21T18:15:00.000Z"
+    }
+  ],
+  "journal": [
+    {
+      "id": "journal-1",
+      "title": "A small reset",
+      "prompt": "What helped me feel grounded today?",
+      "body": "Putting my phone away during dinner made the evening feel quieter.",
+      "createdAt": "2026-05-20T19:00:00.000Z"
+    }
+  ],
+  "appointments": [
+    {
+      "id": "appointment-1",
+      "name": "Aarav Sharma",
+      "email": "aarav@example.com",
+      "therapist": "Dr. Meera Rao",
+      "sessionType": "Video therapy",
+      "date": "2026-05-27",
+      "time": "17:30",
+      "concern": "Stress and sleep routines",
+      "createdAt": "2026-05-22T10:00:00.000Z"
+    }
+  ],
+  "profile": {
+    "name": "Ishan",
+    "goal": "Build healthier routines",
+    "preferredCheckIn": "Evening",
+    "notifications": true,
+    "privacyMode": true
+  },
+  "resources": [
+    {
+      "id": "res-1",
+      "title": "5-minute grounding practice",
+      "category": "Anxiety",
+      "readTime": "4 min",
+      "summary": "A simple sensory exercise for moments that feel too loud."
+    },
+    {
+      "id": "res-2",
+      "title": "Sleep wind-down checklist",
+      "category": "Sleep",
+      "readTime": "6 min",
+      "summary": "Build a repeatable night routine that reduces decision fatigue."
+    },
+    {
+      "id": "res-3",
+      "title": "Naming emotions without judging them",
+      "category": "Self-awareness",
+      "readTime": "5 min",
+      "summary": "A practical way to notice feelings without turning them into a verdict."
+    },
+    {
+      "id": "res-4",
+      "title": "When stress becomes too much",
+      "category": "Stress",
+      "readTime": "7 min",
+      "summary": "Signals that you may need more support and how to ask for it."
+    }
+  ],
+  "therapists": [
+    {
+      "id": "therapist-1",
+      "name": "Dr. Meera Rao",
+      "specialty": "Anxiety, stress, student wellbeing",
+      "language": "English, Hindi",
+      "availability": "Mon, Wed, Fri",
+      "mode": "Video and in-person"
+    },
+    {
+      "id": "therapist-2",
+      "name": "Rohan Malhotra",
+      "specialty": "Relationships, burnout, mindfulness",
+      "language": "English, Punjabi",
+      "availability": "Tue, Thu, Sat",
+      "mode": "Video"
+    },
+    {
+      "id": "therapist-3",
+      "name": "Nisha Kapoor",
+      "specialty": "Sleep, habits, emotional regulation",
+      "language": "English, Hindi",
+      "availability": "Mon to Thu",
+      "mode": "Video and phone"
+    }
+  ]
+}

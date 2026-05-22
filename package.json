@@ -1,0 +1,19 @@
+{
+  "name": "soul-sync",
+  "version": "1.0.0",
+  "description": "A full-stack multi-page mental health and wellness platform.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node --check server.js"
+  },
+  "keywords": [
+    "mental-health",
+    "wellness",
+    "full-stack",
+    "node"
+  ],
+  "author": "Ishan Chadha",
+  "license": "MIT"
+}

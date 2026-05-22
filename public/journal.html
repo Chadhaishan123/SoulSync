@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Journal | Soul Sync</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark">S</span><span>Soul Sync</span></a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a>
+      </nav>
+    </header>
+    <main class="container">
+      <section class="page-head">
+        <div>
+          <p class="eyebrow">Private reflection</p>
+          <h1>Journal</h1>
+          <p>Use guided prompts or write freely. The goal is noticing, not performing.</p>
+        </div>
+      </section>
+      <section class="split">
+        <form class="form-panel" id="journalForm">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="title">Title</label>
+              <input id="title" name="title" placeholder="A short name for this entry" required>
+            </div>
+            <div class="field full">
+              <label for="prompt">Prompt</label>
+              <select id="prompt" name="prompt">
+                <option>What do I need more of today?</option>
+                <option>What felt heavy, and what helped?</option>
+                <option>What is one kind thing I can say to myself?</option>
+                <option>Free reflection</option>
+              </select>
+            </div>
+            <div class="field full">
+              <label for="body">Entry</label>
+              <textarea id="body" name="body" required placeholder="Write what feels useful to name."></textarea>
+            </div>
+          </div>
+          <button class="button" type="submit">Save entry</button>
+          <p class="status" id="journalStatus"></p>
+        </form>
+        <section>
+          <h2>Saved entries</h2>
+          <div class="list" id="journalList" style="margin-top: 16px;"></div>
+        </section>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>
