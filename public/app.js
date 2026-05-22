@@ -1,13 +1,13 @@
 const api = {
   async get(path) {
-    const response = await fetch(path);
+    const response = await fetch(path, authOptions());
     if (!response.ok) throw new Error("Unable to load data");
     return response.json();
   },
   async send(path, method, body) {
     const response = await fetch(path, {
       method,
-      headers: { "Content-Type": "application/json" },
+      headers: authHeaders(),
       body: JSON.stringify(body)
     });
     const payload = await response.json();
@@ -15,6 +15,19 @@ const api = {
     return payload;
   }
 };
+
+function authHeaders() {
+  const token = localStorage.getItem("soulSyncToken");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { "X-Session-Token": token } : {})
+  };
+}
+
+function authOptions() {
+  const token = localStorage.getItem("soulSyncToken");
+  return token ? { headers: { "X-Session-Token": token } } : {};
+}
 
 function byId(id) {
   return document.getElementById(id);
@@ -57,6 +70,51 @@ function renderList(id, items, renderer, emptyMessage = "Nothing here yet.") {
   const element = byId(id);
   if (!element) return;
   element.innerHTML = items.length ? items.map(renderer).join("") : `<div class="empty">${emptyMessage}</div>`;
+}
+
+async function initAuth() {
+  const authState = byId("authState");
+  if (!authState) return;
+
+  async function refresh() {
+    const data = await api.get("/api/auth/me");
+    authState.innerHTML = `
+      <article class="card">
+        <h3>${escapeHtml(data.user.name)}</h3>
+        <p>${escapeHtml(data.user.email)} ${data.isDemo ? "(demo mode)" : ""}</p>
+        <div class="tag-row"><span class="tag">${escapeHtml(data.user.role)}</span><span class="tag warn">${data.isDemo ? "Demo account" : "Signed in"}</span></div>
+      </article>
+    `;
+  }
+
+  document.querySelectorAll("[data-auth-form]").forEach((form) => {
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = Object.fromEntries(new FormData(form));
+      const route = form.dataset.authForm === "register" ? "/api/auth/register" : "/api/auth/login";
+      try {
+        const data = await api.send(route, "POST", payload);
+        localStorage.setItem("soulSyncToken", data.token);
+        setStatus("authStatus", "Signed in successfully.");
+        form.reset();
+        await refresh();
+      } catch (error) {
+        setStatus("authStatus", error.message);
+      }
+    });
+  });
+
+  const logout = byId("logoutButton");
+  if (logout) {
+    logout.addEventListener("click", async () => {
+      await api.send("/api/auth/logout", "POST", {});
+      localStorage.removeItem("soulSyncToken");
+      setStatus("authStatus", "Signed out. Demo mode is active.");
+      await refresh();
+    });
+  }
+
+  await refresh();
 }
 
 async function initHome() {
@@ -102,6 +160,28 @@ async function initDashboard() {
       <div class="tag-row"><span class="tag">${escapeHtml(item.category)}</span><span class="tag warn">${escapeHtml(item.readTime)}</span></div>
     </article>
   `);
+
+  const insights = data.insights;
+  if (byId("insightPanel") && insights) {
+    byId("insightPanel").innerHTML = `
+      <article class="card">
+        <h3>Mood prediction</h3>
+        <p>Predicted next check-in: <strong>${Number(insights.moodPrediction.predictedIntensity)}/10</strong></p>
+        <p class="meta">Trend: ${escapeHtml(insights.moodPrediction.trend)} | Confidence: ${escapeHtml(insights.moodPrediction.confidence)}</p>
+        <p>${escapeHtml(insights.moodPrediction.suggestion)}</p>
+      </article>
+      <article class="card">
+        <h3>Safety screen</h3>
+        <p>Current risk signal: <strong>${escapeHtml(insights.crisisScreen.risk)}</strong></p>
+        <p>${escapeHtml(insights.crisisScreen.message)}</p>
+      </article>
+      <article class="card">
+        <h3>Pattern summary</h3>
+        <p>Recurring dream emotion: <strong>${escapeHtml(insights.patternSummary.recurringDreamEmotion)}</strong></p>
+        <p class="meta">${Number(insights.patternSummary.moodEntries)} moods | ${Number(insights.patternSummary.journalEntries)} journals | ${Number(insights.patternSummary.dreamEntries)} dreams</p>
+      </article>
+    `;
+  }
 }
 
 async function initDreams() {
@@ -272,6 +352,47 @@ async function initTherapists() {
       setStatus("appointmentStatus", error.message);
     }
   });
+
+  const matchForm = byId("matchForm");
+  if (matchForm) {
+    matchForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const payload = Object.fromEntries(new FormData(matchForm));
+      try {
+        const matches = await api.send("/api/therapist-match", "POST", payload);
+        renderList("matchList", matches, (item) => `
+          <article class="list-item">
+            <h3>${escapeHtml(item.name)} - ${Number(item.matchScore)}%</h3>
+            <p>${escapeHtml(item.specialty)}</p>
+            <p class="meta">${escapeHtml(item.language)} | ${escapeHtml(item.mode)} | ${escapeHtml(item.matchReason)}</p>
+          </article>
+        `);
+      } catch (error) {
+        setStatus("matchStatus", error.message);
+      }
+    });
+  }
+}
+
+async function initSafetyCheck() {
+  const form = byId("safetyForm");
+  if (!form) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = Object.fromEntries(new FormData(form));
+    try {
+      const result = await api.send("/api/safety-check", "POST", payload);
+      byId("safetyResult").innerHTML = `
+        <article class="list-item">
+          <h3>Risk signal: ${escapeHtml(result.risk)}</h3>
+          <p>${escapeHtml(result.message)}</p>
+          <p class="meta">Matched phrases: ${escapeHtml(result.matches.join(", ") || "none")}</p>
+        </article>
+      `;
+    } catch (error) {
+      setStatus("safetyStatus", error.message);
+    }
+  });
 }
 
 async function initProfile() {
@@ -329,12 +450,14 @@ async function initAdmin() {
 document.addEventListener("DOMContentLoaded", () => {
   setActiveNav();
   initHome().catch(console.error);
+  initAuth().catch(console.error);
   initDashboard().catch(console.error);
   initMood().catch(console.error);
   initJournal().catch(console.error);
   initDreams().catch(console.error);
   initResources().catch(console.error);
   initTherapists().catch(console.error);
+  initSafetyCheck().catch(console.error);
   initProfile().catch(console.error);
   initAdmin().catch(console.error);
 });

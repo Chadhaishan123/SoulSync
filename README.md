@@ -39,6 +39,10 @@ $env:PORT=4000; npm start
 - Therapists
 - Crisis Help
 - Profile
+- Login / Register
+- Predictive Insights
+- Therapist Matching
+- Safety Text Screen
 - Admin
 
 ## Safety Note
@@ -54,3 +58,19 @@ The Dream Analyzer uses a local, dependency-free NLP/ML pipeline:
 - DL-inspired scoring: a small neural-style dense layer with sigmoid activations to refine emotion probabilities
 
 It is designed for reflective journaling only, not clinical interpretation or diagnosis.
+
+## Phase Two Enhancements
+
+- Demo authentication with local session tokens
+- User-scoped moods, journals, dreams, appointments, and profile settings
+- Predictive mood insight from recent check-ins
+- Personalized resource recommendations from recent mood, journal, and dream signals
+- Crisis keyword screening endpoint and UI
+- Therapist matching by concern, language, and session mode
+
+Demo account:
+
+```text
+email: demo@soulsync.local
+password: demo123
+```

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login | Soul Sync</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark">S</span><span>Soul Sync</span></a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="dreams.html">Dreams</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a><a href="auth.html">Login</a>
+      </nav>
+    </header>
+    <main class="container">
+      <section class="page-head">
+        <div>
+          <p class="eyebrow">User accounts</p>
+          <h1>Login and register</h1>
+          <p>Use demo credentials or create a local account. Data is scoped by session in the JSON store.</p>
+        </div>
+      </section>
+      <section class="grid three">
+        <div id="authState"></div>
+        <form class="form-panel" data-auth-form="login">
+          <h2>Login</h2>
+          <div class="form-grid" style="margin-top: 16px;">
+            <div class="field full"><label for="loginEmail">Email</label><input id="loginEmail" name="email" type="email" value="demo@soulsync.local" required></div>
+            <div class="field full"><label for="loginPassword">Password</label><input id="loginPassword" name="password" type="password" value="demo123" required></div>
+          </div>
+          <button class="button" type="submit">Login</button>
+        </form>
+        <form class="form-panel" data-auth-form="register">
+          <h2>Register</h2>
+          <div class="form-grid" style="margin-top: 16px;">
+            <div class="field full"><label for="registerName">Name</label><input id="registerName" name="name" required></div>
+            <div class="field full"><label for="registerEmail">Email</label><input id="registerEmail" name="email" type="email" required></div>
+            <div class="field full"><label for="registerPassword">Password</label><input id="registerPassword" name="password" type="password" required></div>
+          </div>
+          <button class="button secondary" type="submit">Create account</button>
+        </form>
+      </section>
+      <div class="actions"><button class="button danger" id="logoutButton" type="button">Logout</button></div>
+      <p class="status" id="authStatus"></p>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

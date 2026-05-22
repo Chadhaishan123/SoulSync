@@ -10,7 +10,7 @@
     <header class="topbar">
       <a class="brand" href="index.html"><span class="brand-mark">S</span><span>Soul Sync</span></a>
       <nav class="nav" aria-label="Main navigation">
-        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="dreams.html">Dreams</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a>
+        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="dreams.html">Dreams</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a><a href="auth.html">Login</a>
       </nav>
     </header>
     <main class="container">
@@ -47,6 +47,23 @@
         </article>
       </section>
       <p class="notice" style="margin-top: 24px;">Soul Sync can offer organization and wellness tools, but it cannot provide emergency intervention, diagnosis, or treatment.</p>
+      <section style="margin-top: 28px;">
+        <div class="page-head">
+          <div>
+            <h2>Safety text screen</h2>
+            <p>Paste a note or check-in to scan for crisis language and surface immediate support guidance.</p>
+          </div>
+        </div>
+        <form class="form-panel" id="safetyForm">
+          <div class="field">
+            <label for="safetyText">Text to screen</label>
+            <textarea id="safetyText" name="text" placeholder="Paste a message or check-in here."></textarea>
+          </div>
+          <button class="button danger" type="submit">Run safety screen</button>
+          <p class="status" id="safetyStatus"></p>
+        </form>
+        <div class="list" id="safetyResult" style="margin-top: 16px;"></div>
+      </section>
     </main>
     <script src="app.js"></script>
   </body>

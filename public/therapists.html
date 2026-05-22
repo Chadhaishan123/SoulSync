@@ -10,7 +10,7 @@
     <header class="topbar">
       <a class="brand" href="index.html"><span class="brand-mark">S</span><span>Soul Sync</span></a>
       <nav class="nav" aria-label="Main navigation">
-        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="dreams.html">Dreams</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a>
+        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="dreams.html">Dreams</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a><a href="auth.html">Login</a>
       </nav>
     </header>
     <main class="container">
@@ -66,6 +66,33 @@
           <button class="button" type="submit">Request booking</button>
           <p class="status" id="appointmentStatus"></p>
         </form>
+      </section>
+      <section style="margin-top: 28px;">
+        <div class="page-head">
+          <div>
+            <h2>Therapist matching</h2>
+            <p>Match by concern, language, and preferred session mode using a local scoring model.</p>
+          </div>
+        </div>
+        <form class="form-panel" id="matchForm">
+          <div class="form-grid">
+            <div class="field">
+              <label for="matchConcern">Concern</label>
+              <input id="matchConcern" name="concern" placeholder="anxiety, sleep, burnout">
+            </div>
+            <div class="field">
+              <label for="matchLanguage">Language</label>
+              <input id="matchLanguage" name="language" placeholder="Hindi, English, Punjabi">
+            </div>
+            <div class="field">
+              <label for="matchMode">Mode</label>
+              <input id="matchMode" name="mode" placeholder="video, phone, in-person">
+            </div>
+          </div>
+          <button class="button" type="submit">Find best matches</button>
+          <p class="status" id="matchStatus"></p>
+        </form>
+        <div class="list" id="matchList" style="margin-top: 16px;"></div>
       </section>
     </main>
     <script src="app.js"></script>
