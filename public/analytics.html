@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Analytics | Soul Sync</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark">S</span><span>Soul Sync</span></a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="analytics.html">Analytics</a><a href="companion.html">Companion</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="dreams.html">Dreams</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a><a href="auth.html">Login</a>
+      </nav>
+    </header>
+    <main class="container">
+      <section class="page-head">
+        <div>
+          <p class="eyebrow">Weekly report</p>
+          <h1>Analytics</h1>
+          <p>Review mood movement, sleep patterns, reflection activity, and recommended next steps.</p>
+        </div>
+      </section>
+      <section class="grid three" id="weeklyReport"></section>
+      <section class="card" style="margin-top: 24px;">
+        <h2>Mood trend</h2>
+        <canvas id="moodChart" style="width: 100%; height: 260px; margin-top: 16px;"></canvas>
+      </section>
+      <section class="grid two" style="margin-top: 24px;">
+        <div>
+          <h2>Next steps</h2>
+          <div class="list" id="weeklySteps" style="margin-top: 16px;"></div>
+        </div>
+        <div>
+          <h2>Recommended resources</h2>
+          <div class="list" id="weeklyResources" style="margin-top: 16px;"></div>
+        </div>
+      </section>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

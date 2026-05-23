@@ -43,6 +43,8 @@ $env:PORT=4000; npm start
 - Predictive Insights
 - Therapist Matching
 - Safety Text Screen
+- Analytics / Weekly Reports
+- Wellness Companion
 - Admin
 
 ## Safety Note
@@ -62,11 +64,16 @@ It is designed for reflective journaling only, not clinical interpretation or di
 ## Phase Two Enhancements
 
 - Demo authentication with local session tokens
+- PBKDF2-ready password hashing and signed HMAC session tokens
+- Basic API rate limiting and input validation
 - User-scoped moods, journals, dreams, appointments, and profile settings
 - Predictive mood insight from recent check-ins
 - Personalized resource recommendations from recent mood, journal, and dream signals
 - Crisis keyword screening endpoint and UI
 - Therapist matching by concern, language, and session mode
+- Canvas-based mood trend chart
+- Weekly report endpoint and analytics page
+- AI-style wellness companion with safety-aware responses
 
 Demo account:
 

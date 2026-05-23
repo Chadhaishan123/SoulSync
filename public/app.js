@@ -72,6 +72,56 @@ function renderList(id, items, renderer, emptyMessage = "Nothing here yet.") {
   element.innerHTML = items.length ? items.map(renderer).join("") : `<div class="empty">${emptyMessage}</div>`;
 }
 
+function drawMoodChart(canvas, trend) {
+  if (!canvas || !trend.length) return;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width = canvas.clientWidth * devicePixelRatio;
+  const height = canvas.height = 260 * devicePixelRatio;
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+  ctx.clearRect(0, 0, width, height);
+  const pad = 34;
+  const chartWidth = canvas.clientWidth - pad * 2;
+  const chartHeight = 180;
+
+  ctx.strokeStyle = "#ddd7ca";
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 5; i += 1) {
+    const y = pad + chartHeight - (i / 5) * chartHeight;
+    ctx.beginPath();
+    ctx.moveTo(pad, y);
+    ctx.lineTo(pad + chartWidth, y);
+    ctx.stroke();
+  }
+
+  const points = trend.map((item, index) => ({
+    x: pad + (trend.length === 1 ? chartWidth / 2 : (index / (trend.length - 1)) * chartWidth),
+    y: pad + chartHeight - (Number(item.intensity) / 10) * chartHeight,
+    item
+  }));
+
+  ctx.strokeStyle = "#25746a";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  points.forEach((point, index) => {
+    if (index === 0) ctx.moveTo(point.x, point.y);
+    else ctx.lineTo(point.x, point.y);
+  });
+  ctx.stroke();
+
+  points.forEach((point) => {
+    ctx.fillStyle = "#fffaf2";
+    ctx.strokeStyle = "#18564e";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(point.x, point.y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#667270";
+    ctx.font = "12px system-ui";
+    ctx.fillText(point.item.label, point.x - 18, pad + chartHeight + 28);
+  });
+}
+
 async function initAuth() {
   const authState = byId("authState");
   if (!authState) return;
@@ -182,6 +232,50 @@ async function initDashboard() {
       </article>
     `;
   }
+}
+
+async function initAnalytics() {
+  const reportNode = byId("weeklyReport");
+  if (!reportNode) return;
+  const [report, trend] = await Promise.all([
+    api.get("/api/reports/weekly"),
+    api.get("/api/analytics/mood-trend")
+  ]);
+
+  reportNode.innerHTML = `
+    <article class="card metric"><span>Average mood</span><strong>${Number(report.averageMood) || "-"}/10</strong><p>${escapeHtml(report.summary)}</p></article>
+    <article class="card metric"><span>Average sleep</span><strong>${Number(report.averageSleep) || "-"}</strong><p>Hours across recent check-ins.</p></article>
+    <article class="card metric"><span>Journal words</span><strong>${Number(report.journalWords)}</strong><p>Reflection volume this week.</p></article>
+  `;
+  renderList("weeklySteps", report.nextSteps, (item) => `<article class="list-item"><p>${escapeHtml(item)}</p></article>`);
+  renderList("weeklyResources", report.recommendedResources, (item) => `
+    <article class="list-item"><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary)}</p><p class="meta">${escapeHtml(item.category)} | ${escapeHtml(item.readTime)}</p></article>
+  `);
+  drawMoodChart(byId("moodChart"), trend);
+}
+
+async function initCompanion() {
+  const form = byId("companionForm");
+  if (!form) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const payload = Object.fromEntries(new FormData(form));
+    try {
+      const result = await api.send("/api/companion", "POST", payload);
+      byId("companionReply").innerHTML = `
+        <article class="list-item">
+          <h3>Companion response</h3>
+          <p>${escapeHtml(result.reply)}</p>
+          <p class="meta">Tone: ${escapeHtml(result.tone)} | Safety risk: ${escapeHtml(result.crisis.risk)}</p>
+        </article>
+      `;
+      renderList("companionResources", result.suggestedResources || [], (item) => `
+        <article class="list-item"><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.summary)}</p></article>
+      `);
+    } catch (error) {
+      setStatus("companionStatus", error.message);
+    }
+  });
 }
 
 async function initDreams() {
@@ -452,6 +546,8 @@ document.addEventListener("DOMContentLoaded", () => {
   initHome().catch(console.error);
   initAuth().catch(console.error);
   initDashboard().catch(console.error);
+  initAnalytics().catch(console.error);
+  initCompanion().catch(console.error);
   initMood().catch(console.error);
   initJournal().catch(console.error);
   initDreams().catch(console.error);

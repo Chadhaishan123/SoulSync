@@ -3,13 +3,22 @@ const fs = require("fs/promises");
 const path = require("path");
 const crypto = require("crypto");
 const { analyzeDream } = require("./dreamAnalyzer");
-const { buildInsights, detectCrisis, matchTherapists } = require("./intelligence");
+const {
+  buildInsights,
+  buildMoodTrend,
+  buildWeeklyReport,
+  companionReply,
+  detectCrisis,
+  matchTherapists
+} = require("./intelligence");
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, "public");
 const DB_PATH = path.join(ROOT, "data", "db.json");
 const DEMO_USER_ID = "user-demo";
+const TOKEN_SECRET = process.env.SESSION_SECRET || "soul-sync-local-dev-secret";
+const RATE_LIMIT = new Map();
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -38,6 +47,23 @@ function sendJson(res, statusCode, payload) {
     "Cache-Control": "no-store"
   });
   res.end(JSON.stringify(payload));
+}
+
+function checkRateLimit(req, res) {
+  const key = `${req.socket.remoteAddress || "local"}:${new URL(req.url, "http://local").pathname}`;
+  const now = Date.now();
+  const bucket = RATE_LIMIT.get(key) || { count: 0, resetAt: now + 60000 };
+  if (now > bucket.resetAt) {
+    bucket.count = 0;
+    bucket.resetAt = now + 60000;
+  }
+  bucket.count += 1;
+  RATE_LIMIT.set(key, bucket);
+  if (bucket.count > 120) {
+    sendError(res, 429, "Too many requests. Please slow down.");
+    return false;
+  }
+  return true;
 }
 
 function sendError(res, statusCode, message) {
@@ -72,7 +98,46 @@ function createId(prefix) {
 }
 
 function hashPassword(password) {
-  return crypto.createHash("sha256").update(String(password)).digest("hex");
+  const salt = crypto.randomBytes(16).toString("hex");
+  const hash = crypto.pbkdf2Sync(String(password), salt, 120000, 32, "sha256").toString("hex");
+  return `pbkdf2:${salt}:${hash}`;
+}
+
+function verifyPassword(password, storedHash) {
+  if (String(storedHash || "").startsWith("pbkdf2:")) {
+    const [, salt, hash] = storedHash.split(":");
+    const candidate = crypto.pbkdf2Sync(String(password), salt, 120000, 32, "sha256").toString("hex");
+    if (candidate.length !== hash.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(candidate, "hex"), Buffer.from(hash, "hex"));
+  }
+  return crypto.createHash("sha256").update(String(password)).digest("hex") === storedHash;
+}
+
+function createSessionToken(userId) {
+  const payload = Buffer.from(JSON.stringify({
+    userId,
+    nonce: crypto.randomUUID(),
+    createdAt: Date.now()
+  })).toString("base64url");
+  const signature = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function isSignedToken(token) {
+  const [payload, signature] = String(token || "").split(".");
+  if (!payload || !signature) return false;
+  const expected = crypto.createHmac("sha256", TOKEN_SECRET).update(payload).digest("base64url");
+  if (signature.length !== expected.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+}
+
+function validateEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ""));
+}
+
+function validateRange(value, min, max) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= min && number <= max;
 }
 
 function normalizeDb(db) {
@@ -101,7 +166,7 @@ function getToken(req) {
 
 function getCurrentUser(req, db) {
   const token = getToken(req);
-  const session = token ? db.sessions.find((item) => item.token === token) : null;
+  const session = token && isSignedToken(token) ? db.sessions.find((item) => item.token === token) : null;
   return db.users.find((user) => user.id === session?.userId) || db.users.find((user) => user.id === DEMO_USER_ID);
 }
 
@@ -161,6 +226,8 @@ async function handleApi(req, res, pathname) {
     const missing = requiredFields(body, ["name", "email", "password"]);
     if (missing.length) return sendError(res, 422, `Missing fields: ${missing.join(", ")}`);
     const email = String(body.email).trim().toLowerCase();
+    if (!validateEmail(email)) return sendError(res, 422, "Enter a valid email address");
+    if (String(body.password || "").length < 6) return sendError(res, 422, "Password must be at least 6 characters");
     if (db.users.some((item) => item.email === email)) return sendError(res, 409, "Email is already registered");
 
     const newUser = {
@@ -171,7 +238,7 @@ async function handleApi(req, res, pathname) {
       role: "user",
       createdAt: new Date().toISOString()
     };
-    const token = createId("session");
+    const token = createSessionToken(newUser.id);
     db.users.push(newUser);
     db.sessions.push({ token, userId: newUser.id, createdAt: new Date().toISOString() });
     await writeDb(db);
@@ -181,10 +248,10 @@ async function handleApi(req, res, pathname) {
   if (req.method === "POST" && pathname === "/api/auth/login") {
     const body = await readBody(req);
     const email = String(body.email || "").trim().toLowerCase();
-    const foundUser = db.users.find((item) => item.email === email && item.passwordHash === hashPassword(body.password));
+    const foundUser = db.users.find((item) => item.email === email && verifyPassword(body.password, item.passwordHash));
     if (!foundUser) return sendError(res, 401, "Invalid email or password");
 
-    const token = createId("session");
+    const token = createSessionToken(foundUser.id);
     db.sessions.push({ token, userId: foundUser.id, createdAt: new Date().toISOString() });
     await writeDb(db);
     return sendJson(res, 200, { token, user: publicUser(foundUser) });
@@ -205,6 +272,20 @@ async function handleApi(req, res, pathname) {
     return sendJson(res, 200, buildInsights(db, userRecords(db, user)));
   }
 
+  if (req.method === "GET" && pathname === "/api/reports/weekly") {
+    return sendJson(res, 200, buildWeeklyReport(db, userRecords(db, user)));
+  }
+
+  if (req.method === "GET" && pathname === "/api/analytics/mood-trend") {
+    return sendJson(res, 200, buildMoodTrend(userRecords(db, user).moods));
+  }
+
+  if (req.method === "POST" && pathname === "/api/companion") {
+    const body = await readBody(req);
+    if (!String(body.message || "").trim()) return sendError(res, 422, "Message is required");
+    return sendJson(res, 200, companionReply(body.message, db, userRecords(db, user)));
+  }
+
   if (req.method === "POST" && pathname === "/api/safety-check") {
     const body = await readBody(req);
     return sendJson(res, 200, detectCrisis(body.text));
@@ -218,6 +299,8 @@ async function handleApi(req, res, pathname) {
     const body = await readBody(req);
     const missing = requiredFields(body, ["mood", "intensity"]);
     if (missing.length) return sendError(res, 422, `Missing fields: ${missing.join(", ")}`);
+    if (!validateRange(body.intensity, 1, 10)) return sendError(res, 422, "Intensity must be between 1 and 10");
+    if (body.sleep && !validateRange(body.sleep, 0, 16)) return sendError(res, 422, "Sleep must be between 0 and 16 hours");
 
     const entry = {
       id: createId("mood"),
@@ -306,6 +389,7 @@ async function handleApi(req, res, pathname) {
     const body = await readBody(req);
     const missing = requiredFields(body, ["name", "email", "therapist", "sessionType", "date", "time"]);
     if (missing.length) return sendError(res, 422, `Missing fields: ${missing.join(", ")}`);
+    if (!validateEmail(body.email)) return sendError(res, 422, "Enter a valid email address");
 
     const appointment = {
       id: createId("appointment"),
@@ -376,6 +460,7 @@ async function serveStatic(req, res, pathname) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    if (!checkRateLimit(req, res)) return;
     const url = new URL(req.url, `http://${req.headers.host}`);
     if (url.pathname.startsWith("/api/")) {
       await handleApi(req, res, url.pathname);

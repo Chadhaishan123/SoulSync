@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Companion | Soul Sync</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark">S</span><span>Soul Sync</span></a>
+      <nav class="nav" aria-label="Main navigation">
+        <a href="index.html">Home</a><a href="dashboard.html">Dashboard</a><a href="analytics.html">Analytics</a><a href="companion.html">Companion</a><a href="mood.html">Mood</a><a href="journal.html">Journal</a><a href="dreams.html">Dreams</a><a href="resources.html">Resources</a><a href="therapists.html">Therapists</a><a href="crisis.html">Crisis</a><a href="profile.html">Profile</a><a href="auth.html">Login</a>
+      </nav>
+    </header>
+    <main class="container">
+      <section class="page-head">
+        <div>
+          <p class="eyebrow">AI-style support</p>
+          <h1>Wellness companion</h1>
+          <p>A local companion uses safety screening, mood prediction, and resource matching to suggest a practical next step.</p>
+        </div>
+      </section>
+      <section class="split">
+        <form class="form-panel" id="companionForm">
+          <div class="field">
+            <label for="message">What is on your mind?</label>
+            <textarea id="message" name="message" required placeholder="Write a quick check-in, worry, sleep issue, or dream question."></textarea>
+          </div>
+          <button class="button" type="submit">Ask companion</button>
+          <p class="status" id="companionStatus"></p>
+        </form>
+        <section>
+          <h2>Response</h2>
+          <div class="list" id="companionReply" style="margin-top: 16px;">
+            <div class="empty">Your companion response will appear here.</div>
+          </div>
+          <h2 style="margin-top: 24px;">Matched resources</h2>
+          <div class="list" id="companionResources" style="margin-top: 16px;"></div>
+        </section>
+      </section>
+      <p class="notice" style="margin-top: 24px;">The companion is supportive software, not a therapist or emergency service.</p>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

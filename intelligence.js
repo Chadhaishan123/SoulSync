@@ -115,8 +115,90 @@ function buildInsights(db, userRecords) {
   };
 }
 
+function buildMoodTrend(moods) {
+  return [...moods]
+    .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    .slice(-14)
+    .map((item) => ({
+      label: new Date(item.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+      mood: item.mood,
+      intensity: Number(item.intensity || 0),
+      sleep: Number(item.sleep || 0)
+    }));
+}
+
+function buildWeeklyReport(db, userRecords) {
+  const moods = userRecords.moods.slice(0, 7);
+  const dreams = userRecords.dreams.slice(0, 5);
+  const journals = userRecords.journal.slice(0, 5);
+  const moodPrediction = predictMood(moods);
+  const averageMood = moods.length
+    ? Math.round(moods.reduce((sum, item) => sum + Number(item.intensity || 0), 0) / moods.length)
+    : 0;
+  const averageSleep = moods.length
+    ? Math.round((moods.reduce((sum, item) => sum + Number(item.sleep || 0), 0) / moods.length) * 10) / 10
+    : 0;
+  const themes = dreams.map((dream) => dream.analysis?.dominantEmotion).filter(Boolean);
+  const journalWords = journals.reduce((sum, entry) => sum + String(entry.body || "").split(/\s+/).filter(Boolean).length, 0);
+
+  return {
+    averageMood,
+    averageSleep,
+    moodTrend: moodPrediction.trend,
+    journalWords,
+    dreamSignals: themes.length ? [...new Set(themes)] : ["not enough data"],
+    recommendedResources: recommendResources(db.resources, [
+      moods.map((item) => `${item.mood} ${item.trigger} ${item.note}`).join(" "),
+      journals.map((item) => item.body).join(" "),
+      dreams.map((item) => item.dream).join(" ")
+    ].join(" ")),
+    summary: averageMood
+      ? `Your recent average mood is ${averageMood}/10 with about ${averageSleep} hours of sleep. The current trend is ${moodPrediction.trend}.`
+      : "Add mood check-ins this week to generate a stronger report.",
+    nextSteps: [
+      moodPrediction.suggestion,
+      averageSleep && averageSleep < 6 ? "Protect sleep first: set a wind-down time and reduce late-night stimulation." : "Keep one routine that already supports your sleep.",
+      journalWords < 40 ? "Write one short reflection about what felt heavy and what helped." : "Review your latest journal entry and choose one repeatable support action."
+    ]
+  };
+}
+
+function companionReply(message, db, userRecords) {
+  const crisis = detectCrisis(message);
+  if (crisis.risk !== "low") {
+    return {
+      tone: "urgent-support",
+      reply: "I am really glad you said something. Please contact emergency services or a trusted person right now, and move away from anything you could use to hurt yourself.",
+      crisis
+    };
+  }
+
+  const lower = String(message || "").toLowerCase();
+  const prediction = predictMood(userRecords.moods);
+  let reply = "I hear you. A useful next step is to name the feeling, lower the pressure, and choose one small supportive action.";
+
+  if (lower.includes("sleep") || lower.includes("tired")) {
+    reply = "Sleep seems central here. Try a short wind-down routine tonight: dim lights, put the phone away, and write one sentence about what can wait until tomorrow.";
+  } else if (lower.includes("anxious") || lower.includes("panic") || lower.includes("stress")) {
+    reply = "That sounds activating. Try box breathing for one minute, then write the specific worry and one action that is actually available today.";
+  } else if (lower.includes("dream")) {
+    reply = "Dreams can be emotionally useful even when they are strange. Note the strongest symbol, the strongest feeling, and what waking-life situation has a similar emotional shape.";
+  }
+
+  return {
+    tone: prediction.trend,
+    reply,
+    suggestedResources: recommendResources(db.resources, message),
+    moodPrediction: prediction,
+    crisis
+  };
+}
+
 module.exports = {
   buildInsights,
+  buildMoodTrend,
+  buildWeeklyReport,
+  companionReply,
   detectCrisis,
   matchTherapists,
   predictMood,
