@@ -2,7 +2,8 @@
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
-import DashboardLayout from "@/components/DashboardLayout"
+import DashboardLayout from "../../../components/DashboardLayout"
+import { motion } from "framer-motion"
 
 const emotionOptions = [
   { label: "Happy", emoji: "😊" },
@@ -82,7 +83,12 @@ export default function CheckInPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="max-w-2xl mx-auto bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6"
+      >
         
         <div>
           <h2 className="text-2xl font-bold text-gray-900">How are you feeling today?</h2>
@@ -234,7 +240,7 @@ export default function CheckInPage() {
 
         </form>
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   )
 }

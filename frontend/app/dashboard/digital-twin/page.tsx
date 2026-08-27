@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import DashboardLayout from "@/components/DashboardLayout"
+import DashboardLayout from "../../../components/DashboardLayout"
+import { motion } from "framer-motion"
 import { Brain, ShieldAlert, Activity, Sparkles } from "lucide-react"
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 
@@ -57,7 +58,12 @@ export default function DigitalTwinPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="space-y-8"
+      >
         
         {/* Intro Banner */}
         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 rounded-2xl text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
@@ -151,7 +157,7 @@ export default function DigitalTwinPage() {
 
         </div>
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   )
 }

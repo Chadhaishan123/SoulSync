@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import DashboardLayout from "@/components/DashboardLayout"
+import DashboardLayout from "../../../components/DashboardLayout"
+import { motion } from "framer-motion"
 import { Award, CheckCircle2, ThumbsUp, Sparkles, TrendingUp } from "lucide-react"
 
 interface Recommendation {
@@ -90,7 +91,12 @@ export default function RecommendationsPage() {
 
   return (
     <DashboardLayout>
-      <div className="grid lg:grid-cols-3 gap-8">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="grid lg:grid-cols-3 gap-8"
+      >
         
         {/* Recommendations Panel */}
         <div className="lg:col-span-2 space-y-6">
@@ -188,7 +194,7 @@ export default function RecommendationsPage() {
           </div>
         </div>
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   )
 }

@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import DashboardLayout from "@/components/DashboardLayout"
+import DashboardLayout from "../../../components/DashboardLayout"
+import { motion } from "framer-motion"
 import { BookOpen, Sparkles, Plus, Calendar, Smile } from "lucide-react"
 
 interface JournalAnalysis {
@@ -97,7 +98,12 @@ export default function JournalPage() {
 
   return (
     <DashboardLayout>
-      <div className="grid lg:grid-cols-3 gap-8">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="grid lg:grid-cols-3 gap-8"
+      >
         
         {/* Editor & Logs List Panel */}
         <div className="lg:col-span-2 space-y-6">
@@ -251,7 +257,7 @@ export default function JournalPage() {
           )}
         </div>
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   )
 }

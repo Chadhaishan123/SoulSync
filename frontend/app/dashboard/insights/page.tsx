@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import DashboardLayout from "@/components/DashboardLayout"
+import DashboardLayout from "../../../components/DashboardLayout"
+import { motion } from "framer-motion"
 import { 
   LineChart as ReChartsLine, 
   Line, 
@@ -87,7 +88,12 @@ export default function InsightsPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-8">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="space-y-8"
+      >
         
         {/* Intro */}
         <div className="bg-white p-6 rounded-2xl border border-gray-200">
@@ -201,7 +207,7 @@ export default function InsightsPage() {
 
         </div>
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   )
 }

@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import DashboardLayout from "@/components/DashboardLayout"
+import DashboardLayout from "../../../components/DashboardLayout"
+import { motion } from "framer-motion"
 import { Moon, Calendar, Info, Clock } from "lucide-react"
 
 interface SleepTrendItem {
@@ -129,7 +130,12 @@ export default function SleepPage() {
 
   return (
     <DashboardLayout>
-      <div className="grid lg:grid-cols-3 gap-8">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="grid lg:grid-cols-3 gap-8"
+      >
         
         {/* Log Sleep Form & History */}
         <div className="lg:col-span-2 space-y-6">
@@ -298,7 +304,7 @@ export default function SleepPage() {
           </div>
         </div>
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   )
 }

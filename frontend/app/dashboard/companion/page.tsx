@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from "react"
-import DashboardLayout from "@/components/DashboardLayout"
+import DashboardLayout from "../../../components/DashboardLayout"
+import { motion } from "framer-motion"
 import { Send, Sparkles, MessageSquare, AlertCircle } from "lucide-react"
 
 interface Message {
@@ -67,7 +68,12 @@ export default function CompanionPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto flex flex-col h-[76vh] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="max-w-4xl mx-auto flex flex-col h-[76vh] bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm"
+      >
         
         {/* Header */}
         <div className="px-6 py-4 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
@@ -134,7 +140,7 @@ export default function CompanionPage() {
           </p>
         </div>
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   )
 }

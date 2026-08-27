@@ -2,8 +2,28 @@
 
 import React, { useEffect, useState } from "react"
 import Link from "next/link"
-import DashboardLayout from "@/components/DashboardLayout"
+import DashboardLayout from "../../components/DashboardLayout"
 import { Sparkles, AlertTriangle, ArrowRight, CheckCircle2, Award, Smile } from "lucide-react"
+import { motion } from "framer-motion"
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+}
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 15 },
+  visible: { 
+    opacity: 1, 
+    y: 0, 
+    transition: { type: "spring", stiffness: 100, damping: 15 } 
+  }
+}
 
 interface DashboardData {
   weather: {
@@ -123,10 +143,18 @@ export default function DashboardPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-6">
+      <motion.div 
+        className="space-y-6"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
         
         {/* Welcome Section */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-200">
+        <motion.div 
+          variants={itemVariants}
+          className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl border border-gray-200"
+        >
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Your Daily Overview</h2>
             <p className="text-gray-500 text-sm mt-0.5">Explore your behavioral clusters and self-reflection logs.</p>
@@ -138,13 +166,13 @@ export default function DashboardPage() {
             <Smile className="w-4 h-4" />
             Complete Daily Check-In
           </Link>
-        </div>
+        </motion.div>
 
         {/* Top Cards Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
           
           {/* Card 1: Emotional Weather */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 flex flex-col justify-between space-y-4">
+          <motion.div variants={itemVariants} className="bg-white p-6 rounded-2xl border border-gray-200 flex flex-col justify-between space-y-4">
             <div>
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Today's Emotional Weather</span>
               <div className="flex items-center gap-3 mt-2">
@@ -177,10 +205,10 @@ export default function DashboardPage() {
             ) : (
               <p className="text-xs text-gray-400 border-t border-gray-100 pt-3">No check-in logged for today.</p>
             )}
-          </div>
+          </motion.div>
 
           {/* Card 2: Recent Trend */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 flex flex-col justify-between space-y-4">
+          <motion.div variants={itemVariants} className="bg-white p-6 rounded-2xl border border-gray-200 flex flex-col justify-between space-y-4">
             <div>
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Wellness Trend Prediction</span>
               <div className="flex items-center gap-2 mt-2">
@@ -204,10 +232,10 @@ export default function DashboardPage() {
             <Link href="/dashboard/insights" className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">
               Explore History Charts <ArrowRight className="w-3.5 h-3.5" />
             </Link>
-          </div>
+          </motion.div>
 
           {/* Card 3: Digital Twin Cluster */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 flex flex-col justify-between space-y-4 md:col-span-2 lg:col-span-1">
+          <motion.div variants={itemVariants} className="bg-white p-6 rounded-2xl border border-gray-200 flex flex-col justify-between space-y-4 md:col-span-2 lg:col-span-1">
             <div>
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">SoulSync Digital Twin Profile</span>
               <h3 className="text-lg font-bold text-gray-800 mt-2">{data?.digital_twin?.current_pattern || "Balanced Pattern"}</h3>
@@ -220,7 +248,7 @@ export default function DashboardPage() {
                 Open Twin Visualization <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </div>
-          </div>
+          </motion.div>
 
         </div>
 
@@ -318,7 +346,7 @@ export default function DashboardPage() {
 
         </div>
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   )
 }

@@ -1,7 +1,8 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import DashboardLayout from "@/components/DashboardLayout"
+import DashboardLayout from "../../../components/DashboardLayout"
+import { motion } from "framer-motion"
 import { Check, Shield, Compass, Sparkles } from "lucide-react"
 
 const goalOptions = [
@@ -114,7 +115,12 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="max-w-2xl bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6"
+      >
         
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Account Settings</h2>
@@ -228,7 +234,7 @@ export default function SettingsPage() {
 
         </form>
 
-      </div>
+      </motion.div>
     </DashboardLayout>
   )
 }
