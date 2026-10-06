@@ -14,9 +14,24 @@ class ApiError extends Error {
   data: unknown
 
   constructor(status: number, data: unknown) {
-    const message = typeof data === "object" && data !== null && "detail" in data
-      ? String((data as Record<string, unknown>).detail)
-      : `API error ${status}`
+    let message = `API error ${status}`
+    if (typeof data === "object" && data !== null && "detail" in data) {
+      const detail = (data as Record<string, unknown>).detail
+      if (typeof detail === "string") {
+        message = detail
+      } else if (Array.isArray(detail)) {
+        message = detail
+          .map((item: unknown) => {
+            if (typeof item === "object" && item !== null && "msg" in item) {
+              return String((item as Record<string, unknown>).msg).replace(/^Value error,\s*/i, "")
+            }
+            return String(item)
+          })
+          .join(". ")
+      } else if (typeof detail === "object" && detail !== null) {
+        message = JSON.stringify(detail)
+      }
+    }
     super(message)
     this.name = "ApiError"
     this.status = status

@@ -21,8 +21,20 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters")
+    if (password.length < 8) {
+      toast.error("Password must be at least 8 characters")
+      return
+    }
+    if (!/[A-Z]/.test(password)) {
+      toast.error("Password must include at least one uppercase letter")
+      return
+    }
+    if (!/[a-z]/.test(password)) {
+      toast.error("Password must include at least one lowercase letter")
+      return
+    }
+    if (!/[0-9]/.test(password)) {
+      toast.error("Password must include at least one number")
       return
     }
     setLoading(true)
@@ -111,7 +123,7 @@ export default function RegisterPage() {
               required
               placeholder="Create a password"
               icon={<Lock className="w-4 h-4" />}
-              hint="At least 6 characters"
+              hint="At least 8 chars with uppercase, lowercase & number"
             />
             <PasswordStrength password={password} />
           </div>
