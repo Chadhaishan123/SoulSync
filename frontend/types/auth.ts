@@ -36,11 +36,20 @@ export interface MeResponse {
   is_onboarded: boolean
 }
 
-export interface LoginResponse {
+export interface TokenPair {
   access_token: string
   refresh_token: string
   token_type: string
+  expires_in: number
 }
+
+export interface AuthResponse {
+  user: User
+  tokens: TokenPair
+  is_onboarded: boolean
+}
+
+export type LoginResponse = TokenPair
 
 export interface RegisterRequest {
   name: string

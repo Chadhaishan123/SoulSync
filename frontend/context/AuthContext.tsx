@@ -44,16 +44,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const data = await api.auth.login(email, password)
-    setTokens(data.access_token, data.refresh_token)
+    setTokens(data.tokens.access_token, data.tokens.refresh_token)
     const me = await api.user.getMe()
     setUser(me)
   }, [])
 
   const register = useCallback(async (name: string, email: string, password: string) => {
-    await api.auth.register(name, email, password)
-    // Auto-login after register
-    const data = await api.auth.login(email, password)
-    setTokens(data.access_token, data.refresh_token)
+    const data = await api.auth.register(name, email, password)
+    setTokens(data.tokens.access_token, data.tokens.refresh_token)
     const me = await api.user.getMe()
     setUser(me)
   }, [])

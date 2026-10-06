@@ -151,17 +151,13 @@ async function request<T = unknown>(
 
 export const api = {
   auth: {
-    login: (email: string, password: string) => {
-      const params = new URLSearchParams()
-      params.append("username", email)
-      params.append("password", password)
-      return request<{ access_token: string; refresh_token: string; token_type: string }>(
-        "/api/v1/auth/login",
-        { method: "POST", body: params.toString(), formEncoded: true }
-      )
-    },
+    login: (email: string, password: string) =>
+      request<import("@/types/auth").AuthResponse>("/api/v1/auth/login", {
+        method: "POST",
+        body: { email, password },
+      }),
     register: (name: string, email: string, password: string) =>
-      request("/api/v1/auth/register", {
+      request<import("@/types/auth").AuthResponse>("/api/v1/auth/register", {
         method: "POST",
         body: { name, email, password },
       }),
