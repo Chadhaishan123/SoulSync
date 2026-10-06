@@ -1,19 +1,55 @@
-fastapi==0.110.0
-uvicorn[standard]==0.28.0
-pydantic==2.6.4
-pydantic-settings==2.2.1
-sqlalchemy==2.0.28
-psycopg2-binary==2.9.9
-redis==5.0.3
+# SoulSync backend dependencies
+#
+# Pins match what is actually installed in ./venv and verified working, rather
+# than aspirational versions. The previous requirements.txt had drifted badly
+# (pandas 2.2.1 pinned vs 3.0.5 installed, numpy 1.26.4 vs 2.4.6), so a fresh
+# `pip install -r` produced a different environment from the one being
+# developed against.
+#
+# Install:   pip install -r requirements.txt
+# ML extras: pip install -r requirements-ml.txt   (torch + transformers, ~2 GB)
+
+# ----------------------------------------------------------------- web framework
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+starlette==1.6.0
+python-multipart==0.0.32
+
+# ---------------------------------------------------------------- configuration
+pydantic==2.13.4
+pydantic-settings==2.15.0
+email-validator==2.3.0
+python-dotenv==1.2.3
+
+# --------------------------------------------------------------------- database
+SQLAlchemy==2.0.52
+# Uncomment for PostgreSQL (DATABASE_URL=postgresql+psycopg://...).
+# SQLite needs no driver — it ships with Python.
+# psycopg[binary]==3.2.3
+
+# --------------------------------------------------------------------- security
+python-jose[cryptography]==3.5.0
 passlib[bcrypt]==1.7.4
-python-jose[jwt]==3.3.0
-python-dotenv==1.0.1
-httpx==0.27.0
-scikit-learn==1.4.1.post1
-xgboost==2.0.3
-pandas==2.2.1
-numpy==1.26.4
-joblib==1.3.2
-torch==2.2.1 --index-url https://download.pytorch.org/whl/cpu
-transformers==4.38.2
-pytest==8.1.1
+# Pinned below 4.0: passlib 1.7.4 reads bcrypt.__about__.__version__, which
+# bcrypt 4.x removed. Unpinning produces a noisy startup traceback that still
+# "works", which is exactly the kind of silent breakage worth avoiding.
+bcrypt==3.2.0
+
+# ---------------------------------------------------------------- rate limiting
+slowapi==0.1.10
+limits==5.8.0
+# Optional: shared rate-limit storage across workers (REDIS_URL).
+# redis==5.2.1
+
+# ------------------------------------------------------------- real-time clients
+httpx==0.28.1
+
+# ------------------------------------------------------------------ ml / analysis
+scikit-learn==1.9.0
+pandas==3.0.5
+numpy==2.4.6
+scipy==1.17.1
+joblib==1.5.3
+
+# ------------------------------------------------------------------------- tests
+pytest==9.1.1

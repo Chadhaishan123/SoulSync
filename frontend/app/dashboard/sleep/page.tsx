@@ -1,310 +1,210 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import DashboardLayout from "../../../components/DashboardLayout"
 import { motion } from "framer-motion"
-import { Moon, Calendar, Info, Clock } from "lucide-react"
-
-interface SleepTrendItem {
-  date: string
-  hours: number
-  quality: number
-}
-
-interface SleepSummary {
-  avg_sleep_3d_hours: number
-  avg_sleep_7d_hours: number
-  sleep_consistency: string
-  sleep_quality_trend: SleepTrendItem[]
-}
-
-interface SleepRecord {
-  id: number
-  sleep_duration_minutes: number
-  bedtime: string
-  wake_time: string
-  sleep_quality: number
-  recorded_date: string
-}
+import { Moon, Plus, Star } from "lucide-react"
+import { api } from "@/lib/api"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Slider from "@/components/ui/Slider"
+import SleepRingChart from "@/components/charts/SleepRingChart"
+import { formatDate, formatMinutesToHours } from "@/lib/formatters"
+import type { SleepRecord } from "@/types/sleep"
+import toast from "react-hot-toast"
 
 export default function SleepPage() {
-  const [summary, setSummary] = useState<SleepSummary | null>(null)
   const [records, setRecords] = useState<SleepRecord[]>([])
-  const [bedtime, setBedtime] = useState("")
-  const [wakeTime, setWakeTime] = useState("")
-  const [quality, setQuality] = useState(6)
-  const [logDate, setLogDate] = useState("")
-  
   const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [hours, setHours] = useState(7)
+  const [minutes, setMinutes] = useState(30)
+  const [quality, setQuality] = useState(3)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState("")
 
-  const fetchData = async () => {
-    const token = localStorage.getItem("token")
+  useEffect(() => {
+    loadRecords()
+  }, [])
+
+  const loadRecords = async () => {
     try {
-      const summaryRes = await fetch("http://localhost:8000/api/sleep/summary", {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      if (summaryRes.status === 200) {
-        setSummary(await summaryRes.json())
-      }
-
-      const recordsRes = await fetch("http://localhost:8000/api/sleep", {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      if (recordsRes.status === 200) {
-        setRecords(await recordsRes.json())
-      }
-    } catch (err) {
-      console.error(err)
+      const data = await api.sleep.list()
+      setRecords(data)
+    } catch {
+      //
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    // Set default date to today
-    setLogDate(new Date().toISOString().split("T")[0])
-    fetchData()
-  }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!bedtime || !wakeTime || !logDate) return
-
+  const handleSave = async () => {
     setSaving(true)
-    setError("")
-    const token = localStorage.getItem("token")
-
     try {
-      // Calculate sleep duration in minutes
-      const bed = new Date(`${logDate}T${bedtime}`)
-      let wake = new Date(`${logDate}T${wakeTime}`)
-      
-      // If wake time is earlier than bedtime, assume it's next day
-      if (wake < bed) {
-        wake = new Date(wake.getTime() + 24 * 60 * 60 * 1000)
-      }
-      
-      const diffMs = wake.getTime() - bed.getTime()
-      const durationMin = Math.round(diffMs / (1000 * 60))
-
-      const res = await fetch("http://localhost:8000/api/sleep", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          sleep_duration_minutes: durationMin,
-          bedtime: bed.toISOString(),
-          wake_time: wake.toISOString(),
-          sleep_quality: quality,
-          recorded_date: logDate
-        })
+      await api.sleep.create({
+        sleep_date: new Date().toISOString().split("T")[0],
+        duration_minutes: hours * 60 + minutes,
+        quality_rating: quality,
       })
-
-      if (res.status === 200) {
-        setBedtime("")
-        setWakeTime("")
-        fetchData()
-      } else {
-        const data = await res.json()
-        setError(data.detail || "Failed to log sleep record.")
-      }
-    } catch (err) {
-      console.error(err)
-      setError("Network error connecting to backend.")
+      toast.success("Sleep logged! 😴")
+      setShowForm(false)
+      loadRecords()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to save")
     } finally {
       setSaving(false)
     }
   }
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <p className="text-gray-500 text-center font-medium py-10">Syncing sleep records...</p>
-      </DashboardLayout>
-    )
-  }
+  const latestSleep = records[0]
+  const avgDuration = records.length > 0
+    ? Math.round(records.reduce((s, r) => s + r.duration_minutes, 0) / records.length)
+    : 0
 
   return (
-    <DashboardLayout>
-      <motion.div 
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="grid lg:grid-cols-3 gap-8"
-      >
-        
-        {/* Log Sleep Form & History */}
-        <div className="lg:col-span-2 space-y-6">
-          
-          {/* Form */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-              <Moon className="w-5 h-5 text-blue-600" />
-              Log Sleep Duration
-            </h3>
-            
-            {error && (
-              <div className="bg-red-50 text-red-700 text-xs px-4 py-2.5 rounded-lg border border-red-100">
-                {error}
-              </div>
-            )}
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-3xl mx-auto space-y-6"
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            <Moon className="w-6 h-6 text-indigo-400" />
+            Sleep Tracker
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Track your sleep to discover mood–sleep correlations.
+          </p>
+        </div>
+        <Button onClick={() => setShowForm(!showForm)} icon={<Plus className="w-4 h-4" />}>
+          Log Sleep
+        </Button>
+      </div>
 
-            <form onSubmit={handleSubmit} className="grid sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-gray-500 uppercase">Sleep Date</label>
-                <input
-                  type="date"
-                  value={logDate}
-                  onChange={(e) => setLogDate(e.target.value)}
-                  className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  required
-                />
+      {/* Log Form */}
+      {showForm && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}>
+          <Card variant="glow">
+            <h3 className="text-sm font-bold text-foreground mb-4">Log Last Night&apos;s Sleep</h3>
+            <div className="space-y-5">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <Slider
+                    label="Hours"
+                    value={hours}
+                    onChange={setHours}
+                    min={0}
+                    max={14}
+                    formatValue={(v) => `${v}h`}
+                  />
+                </div>
+                <div className="flex-1">
+                  <Slider
+                    label="Minutes"
+                    value={minutes}
+                    onChange={setMinutes}
+                    min={0}
+                    max={55}
+                    step={5}
+                    formatValue={(v) => `${v}m`}
+                  />
+                </div>
               </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-gray-500 uppercase">Sleep Quality</label>
-                <select
-                  value={quality}
-                  onChange={(e) => setQuality(parseInt(e.target.value))}
-                  className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white"
-                >
-                  {[...Array(10)].map((_, i) => (
-                    <option key={i+1} value={i+1}>{i+1} - {i+1 <= 3 ? "Restless" : i+1 <= 7 ? "Fair" : "Deep"}</option>
+              <div>
+                <span className="text-sm font-medium text-foreground mb-2 block">Quality Rating</span>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <motion.button
+                      key={star}
+                      whileHover={{ scale: 1.2 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setQuality(star)}
+                      className="text-2xl transition-colors"
+                    >
+                      <Star
+                        className={`w-8 h-8 ${
+                          star <= quality
+                            ? "fill-amber-400 text-amber-400"
+                            : "text-muted fill-transparent"
+                        }`}
+                      />
+                    </motion.button>
                   ))}
-                </select>
+                </div>
               </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-gray-500 uppercase">Bedtime (Time)</label>
-                <input
-                  type="time"
-                  value={bedtime}
-                  onChange={(e) => setBedtime(e.target.value)}
-                  className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-xs font-semibold text-gray-500 uppercase">Wake Time (Time)</label>
-                <input
-                  type="time"
-                  value={wakeTime}
-                  onChange={(e) => setWakeTime(e.target.value)}
-                  className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                  required
-                />
-              </div>
-
-              <div className="sm:col-span-2 flex justify-end pt-2">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow-sm transition-colors"
-                >
-                  {saving ? "Saving..." : "Log Sleep Entry"}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Previous Logs Table */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-gray-800 text-lg">Sleep Logs History</h3>
-            <div className="max-h-[300px] overflow-y-auto pr-2">
-              <table className="w-full text-sm text-left text-gray-500">
-                <thead className="text-xs text-gray-400 uppercase bg-gray-50/50">
-                  <tr>
-                    <th className="py-3 px-4 font-semibold">Date</th>
-                    <th className="py-3 px-4 font-semibold">Duration</th>
-                    <th className="py-3 px-4 font-semibold">Bedtime → Wake</th>
-                    <th className="py-3 px-4 font-semibold text-right">Quality</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {records.length > 0 ? (
-                    records.map(record => (
-                      <tr key={record.id} className="hover:bg-gray-50/40">
-                        <td className="py-3 px-4 font-medium text-gray-900">{record.recorded_date}</td>
-                        <td className="py-3 px-4">
-                          {Math.floor(record.sleep_duration_minutes / 60)}h {record.sleep_duration_minutes % 60}m
-                        </td>
-                        <td className="py-3 px-4 text-xs">
-                          {new Date(record.bedtime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} →{" "}
-                          {new Date(record.wake_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                        <td className="py-3 px-4 font-bold text-gray-800 text-right">{record.sleep_quality}/10</td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={4} className="py-6 text-center text-gray-400 text-xs">No sleep logs found.</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+              <Button onClick={handleSave} isLoading={saving} className="w-full">
+                Save Sleep Record
+              </Button>
             </div>
-          </div>
+          </Card>
+        </motion.div>
+      )}
 
-        </div>
+      {/* Stats */}
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="flex flex-col items-center py-8">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+            Last Night
+          </span>
+          {latestSleep ? (
+            <SleepRingChart
+              durationMinutes={latestSleep.duration_minutes}
+              goalMinutes={480}
+              qualityRating={latestSleep.quality_rating}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">No sleep data yet</p>
+          )}
+        </Card>
+        <Card className="flex flex-col items-center py-8">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
+            Average Sleep
+          </span>
+          {avgDuration > 0 ? (
+            <SleepRingChart
+              durationMinutes={avgDuration}
+              goalMinutes={480}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">Log more nights</p>
+          )}
+        </Card>
+      </div>
 
-        {/* Sidebar Summary Stats */}
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6 sticky top-6">
-            <h3 className="font-bold text-gray-800 text-lg">Sleep Insights</h3>
-            
-            {/* 3-day average */}
-            <div className="space-y-1">
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">3-Day Average Hours</p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-3xl font-extrabold text-blue-600">
-                  {summary?.avg_sleep_3d_hours || 0}
+      {/* History */}
+      <Card>
+        <h3 className="text-sm font-bold text-foreground mb-4">Recent Records</h3>
+        {records.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">No sleep records yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {records.slice(0, 10).map((rec) => (
+              <div
+                key={rec.id}
+                className="flex items-center justify-between px-4 py-3 rounded-lg bg-secondary/50"
+              >
+                <span className="text-sm text-foreground font-medium">
+                  {formatDate(rec.sleep_date)}
                 </span>
-                <span className="text-sm font-semibold text-gray-500">hours</span>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    {formatMinutesToHours(rec.duration_minutes)}
+                  </span>
+                  <div className="flex gap-0.5">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Star
+                        key={s}
+                        className={`w-3.5 h-3.5 ${
+                          s <= rec.quality_rating ? "fill-amber-400 text-amber-400" : "text-muted"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-
-            {/* 7-day average */}
-            <div className="space-y-1 border-t border-gray-100 pt-4">
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">7-Day Average Hours</p>
-              <div className="flex items-baseline gap-1.5">
-                <span className="text-3xl font-extrabold text-indigo-600">
-                  {summary?.avg_sleep_7d_hours || 0}
-                </span>
-                <span className="text-sm font-semibold text-gray-500">hours</span>
-              </div>
-            </div>
-
-            {/* Sleep consistency */}
-            <div className="space-y-1 border-t border-gray-100 pt-4">
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Sleep Consistency</p>
-              <span className={`inline-block text-xs font-bold px-2.5 py-1 rounded-full mt-1 ${
-                summary?.sleep_consistency === "High Consistency"
-                  ? "bg-green-50 text-green-700"
-                  : summary?.sleep_consistency === "Moderate Consistency"
-                    ? "bg-blue-50 text-blue-700"
-                    : "bg-amber-50 text-amber-700"
-              }`}>
-                {summary?.sleep_consistency || "Insufficient Data"}
-              </span>
-            </div>
-
-            {/* Information Card */}
-            <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/60 flex gap-2.5 text-xs text-blue-800 leading-relaxed">
-              <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
-              <p>
-                Sleep consistency tracks how stable your daily rest duration is. Keeping a consistent bedtime range is strongly correlated with higher daytime energy scores.
-              </p>
-            </div>
-
+            ))}
           </div>
-        </div>
-
-      </motion.div>
-    </DashboardLayout>
+        )}
+      </Card>
+    </motion.div>
   )
 }

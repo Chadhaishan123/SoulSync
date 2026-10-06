@@ -3,113 +3,118 @@
 import React, { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Brain, ArrowRight } from "lucide-react"
+import { motion } from "framer-motion"
+import { Brain, ArrowRight, Mail, Lock } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
+import Button from "@/components/ui/Button"
+import Input from "@/components/ui/Input"
+import toast from "react-hot-toast"
 
 export default function LoginPage() {
   const router = useRouter()
+  const { login } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError("")
     setLoading(true)
 
     try {
-      // Standard OAuth2 form-urlencoded payload
-      const params = new URLSearchParams()
-      params.append("username", email)
-      params.append("password", password)
-
-      const res = await fetch("http://localhost:8000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: params.toString(),
-      })
-
-      if (res.status === 200) {
-        const data = await res.json()
-        localStorage.setItem("token", data.access_token)
-        router.push("/dashboard")
-      } else {
-        const data = await res.json()
-        setError(data.detail || "Invalid email or password.")
-      }
-    } catch (err) {
-      console.error(err)
-      setError("Unable to connect to the backend server. Please verify it is running.")
+      await login(email, password)
+      toast.success("Welcome back!")
+      router.push("/dashboard")
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Invalid email or password"
+      toast.error(message)
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl border border-gray-100 p-8 space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-2">
-          <div className="inline-flex p-3 bg-blue-50 rounded-xl text-blue-600">
-            <Brain className="w-8 h-8" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="text-sm text-gray-500">Log in to sync with your patterns.</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-soul-purple/8 rounded-full blur-[120px]" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-soul-teal/6 rounded-full blur-[100px]" />
+      </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-100">
-            {error}
-          </div>
-        )}
+      {/* Floating Orbs */}
+      <motion.div
+        animate={{ y: [0, -20, 0], x: [0, 10, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-20 left-[20%] w-3 h-3 rounded-full bg-soul-purple/30"
+      />
+      <motion.div
+        animate={{ y: [0, 15, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
+        className="absolute bottom-32 right-[25%] w-2 h-2 rounded-full bg-soul-teal/40"
+      />
+
+      {/* Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="relative w-full max-w-md glass rounded-2xl p-8 space-y-6"
+      >
+        {/* Header */}
+        <div className="text-center space-y-3">
+          <Link href="/" className="inline-flex">
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              className="w-14 h-14 rounded-2xl bg-gradient-to-br from-soul-purple to-soul-teal flex items-center justify-center shadow-glow mx-auto"
+            >
+              <Brain className="w-7 h-7 text-white" />
+            </motion.div>
+          </Link>
+          <h2 className="text-2xl font-bold text-foreground">Welcome Back</h2>
+          <p className="text-sm text-muted-foreground">Log in to sync with your patterns.</p>
+        </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              placeholder="demo@soulsync.local"
-            />
-          </div>
+          <Input
+            label="Email Address"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            placeholder="you@example.com"
+            icon={<Mail className="w-4 h-4" />}
+          />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-              placeholder="••••••••"
-            />
-          </div>
+          <Input
+            label="Password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            placeholder="••••••••"
+            icon={<Lock className="w-4 h-4" />}
+          />
 
-          <button
+          <Button
             type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold py-2.5 rounded-lg flex items-center justify-center gap-2 transition-colors"
+            isLoading={loading}
+            className="w-full"
+            size="lg"
+            icon={<ArrowRight className="w-4 h-4" />}
           >
-            {loading ? "Logging in..." : "Log In"}
-            <ArrowRight className="w-4 h-4" />
-          </button>
+            Log In
+          </Button>
         </form>
 
-        {/* Footer Link */}
-        <div className="text-center text-sm text-gray-500">
-          Don't have an account?{" "}
-          <Link href="/register" className="text-blue-600 hover:underline font-semibold">
+        {/* Footer */}
+        <p className="text-center text-sm text-muted-foreground">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="text-soul-purple hover:text-soul-purple-light font-semibold transition-colors">
             Register here
           </Link>
-        </div>
-      </div>
+        </p>
+      </motion.div>
     </div>
   )
 }

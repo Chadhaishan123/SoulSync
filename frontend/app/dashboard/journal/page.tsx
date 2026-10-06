@@ -1,263 +1,203 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
-import DashboardLayout from "../../../components/DashboardLayout"
+import React, { useEffect, useState, useRef } from "react"
 import { motion } from "framer-motion"
-import { BookOpen, Sparkles, Plus, Calendar, Smile } from "lucide-react"
-
-interface JournalAnalysis {
-  sentiment_score: number
-  dominant_emotion: string
-  emotion_probabilities: Record<string, number>
-  themes: string[]
-  summary?: string
-}
-
-interface JournalEntry {
-  id: number
-  content: string
-  created_at: string
-  analysis?: JournalAnalysis
-}
+import { BookOpen, Send, Sparkles } from "lucide-react"
+import { api } from "@/lib/api"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Badge from "@/components/ui/Badge"
+import NLPAnalysisPanel from "@/components/features/NLPAnalysisPanel"
+import { EMOTION_EMOJIS } from "@/lib/constants"
+import { formatDate, formatRelative } from "@/lib/formatters"
+import type { JournalEntry } from "@/types/journal"
+import toast from "react-hot-toast"
 
 export default function JournalPage() {
-  const [journals, setJournals] = useState<JournalEntry[]>([])
   const [content, setContent] = useState("")
-  const [loading, setLoading] = useState(true)
+  const [entries, setEntries] = useState<JournalEntry[]>([])
   const [saving, setSaving] = useState(false)
-  const [selectedEntry, setSelectedEntry] = useState<JournalEntry | null>(null)
-  const [error, setError] = useState("")
+  const [analyzing, setAnalyzing] = useState<number | null>(null)
+  const [loading, setLoading] = useState(true)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
-  const fetchJournals = async () => {
-    const token = localStorage.getItem("token")
+  useEffect(() => {
+    loadEntries()
+  }, [])
+
+  const loadEntries = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/journals", {
-        headers: { "Authorization": `Bearer ${token}` }
-      })
-      if (res.status === 200) {
-        const data = await res.json()
-        setJournals(data)
-        if (data.length > 0 && !selectedEntry) {
-          setSelectedEntry(data[0])
-        }
-      }
-    } catch (err) {
-      console.error(err)
+      const data = await api.journal.list()
+      setEntries(data)
+    } catch {
+      // graceful degradation
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    fetchJournals()
-  }, [])
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!content.trim()) return
-    
+  const handleSave = async () => {
+    if (!content.trim()) {
+      toast.error("Write something first")
+      return
+    }
     setSaving(true)
-    setError("")
-    const token = localStorage.getItem("token")
-    
     try {
-      const res = await fetch("http://localhost:8000/api/journals", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({ content })
-      })
-      
-      if (res.status === 200) {
-        const newEntry = await res.json()
-        setContent("")
-        // Refresh journal list
-        await fetchJournals()
-        // Select new entry
-        setSelectedEntry(newEntry)
-      } else {
-        setError("Failed to save and analyze entry.")
+      const entry = await api.journal.create({ content: content.trim() })
+      toast.success("Journal entry saved!")
+      setContent("")
+      // Auto-analyze
+      if (entry?.id) {
+        setAnalyzing(entry.id)
+        try {
+          await api.journal.analyze(entry.id)
+          toast.success("NLP analysis complete ✨")
+        } catch {
+          // NLP may not be enabled
+        }
+        setAnalyzing(null)
       }
-    } catch (err) {
-      console.error(err)
-      setError("Network error. Backend might be offline.")
+      loadEntries()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to save entry")
     } finally {
       setSaving(false)
     }
   }
 
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <p className="text-gray-500 text-center font-medium py-10">Synchronizing journal database...</p>
-      </DashboardLayout>
-    )
+  const handleAnalyze = async (entryId: number) => {
+    setAnalyzing(entryId)
+    try {
+      await api.journal.analyze(entryId)
+      toast.success("Analysis complete ✨")
+      loadEntries()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Analysis failed")
+    } finally {
+      setAnalyzing(null)
+    }
   }
 
   return (
-    <DashboardLayout>
-      <motion.div 
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="grid lg:grid-cols-3 gap-8"
-      >
-        
-        {/* Editor & Logs List Panel */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Editor Card */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-blue-600" />
-              Write in Your Journal
-            </h3>
-            
-            {error && (
-              <div className="bg-red-50 text-red-700 text-xs px-4 py-2.5 rounded-lg border border-red-100">
-                {error}
-              </div>
-            )}
-            
-            <form onSubmit={handleSave} className="space-y-4">
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="How was your day? Write down your thoughts and reflections. Our NLP model will analyze the dominant emotion, extract keywords/themes, and generate an AI summary..."
-                className="w-full min-h-[160px] p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y text-sm transition-all"
-                required
-              />
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={saving || !content.trim()}
-                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-6 py-2.5 rounded-lg text-sm shadow-sm transition-colors"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  {saving ? "Running NLP Analysis..." : "Save & Analyze Entry"}
-                </button>
-              </div>
-            </form>
-          </div>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-3xl mx-auto space-y-6"
+    >
+      <div>
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <BookOpen className="w-6 h-6 text-soul-teal" />
+          AI Journal
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Write freely. Our NLP engine detects emotions and scores sentiment automatically.
+        </p>
+      </div>
 
-          {/* Past Entries Logs */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-gray-800 text-lg">Journal History</h3>
-            <div className="divide-y divide-gray-100 max-h-[300px] overflow-y-auto pr-2">
-              {journals.length > 0 ? (
-                journals.map(entry => {
-                  const isSelected = selectedEntry?.id === entry.id
-                  const entryDate = new Date(entry.created_at).toLocaleDateString()
-                  return (
-                    <button
-                      key={entry.id}
-                      onClick={() => setSelectedEntry(entry)}
-                      className={`w-full text-left py-4 flex justify-between items-center gap-4 transition-colors px-2 rounded-lg ${
-                        isSelected ? "bg-blue-50/40 font-semibold text-blue-900" : "hover:bg-gray-50/50"
-                      }`}
-                    >
-                      <div className="truncate flex-1 space-y-0.5">
-                        <p className="text-xs text-gray-400 flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {entryDate}
-                        </p>
-                        <p className="text-sm text-gray-700 truncate">{entry.content}</p>
-                      </div>
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100 text-gray-600 shrink-0">
-                        {entry.analysis?.dominant_emotion || "Neutral"}
-                      </span>
-                    </button>
-                  )
-                })
-              ) : (
-                <p className="text-sm text-gray-500 py-6 text-center">No journal logs recorded yet.</p>
-              )}
-            </div>
+      {/* Editor */}
+      <Card variant="glow">
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="How was your day? What's on your mind? Write anything that comes to you..."
+          className="w-full h-40 bg-transparent text-foreground placeholder:text-muted-foreground focus:outline-none resize-none text-sm leading-relaxed"
+        />
+        <div className="flex items-center justify-between pt-3 border-t border-border">
+          <span className="text-xs text-muted-foreground">
+            {content.length} characters
+          </span>
+          <div className="flex items-center gap-2">
+            <Badge variant="accent" size="sm" icon={<Sparkles className="w-3 h-3" />}>
+              Auto NLP
+            </Badge>
+            <Button
+              onClick={handleSave}
+              isLoading={saving}
+              size="sm"
+              icon={<Send className="w-3.5 h-3.5" />}
+              disabled={!content.trim()}
+            >
+              Save & Analyze
+            </Button>
           </div>
         </div>
+      </Card>
 
-        {/* AI Analysis Sidebar */}
-        <div className="space-y-6">
-          {selectedEntry ? (
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6 sticky top-6">
-              <div>
-                <h3 className="font-bold text-gray-800 text-lg">AI Sentiment Analysis</h3>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  Logged on {new Date(selectedEntry.created_at).toLocaleDateString()}
-                </p>
+      {/* Entry History */}
+      <div className="space-y-4">
+        <h3 className="text-lg font-bold text-foreground">Past Entries</h3>
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-card border border-border rounded-xl p-5 animate-pulse">
+                <div className="h-4 w-24 bg-muted rounded mb-3" />
+                <div className="h-3 w-full bg-muted rounded mb-2" />
+                <div className="h-3 w-3/4 bg-muted rounded" />
               </div>
-
-              {/* Dominant Emotion */}
-              <div className="bg-blue-50/60 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-blue-700 font-semibold uppercase tracking-wider">Dominant Emotion</p>
-                  <p className="text-lg font-bold text-blue-900">{selectedEntry.analysis?.dominant_emotion}</p>
-                </div>
-                <div className="text-2xl">
-                  {selectedEntry.analysis?.dominant_emotion === "Happy" ? "😊" :
-                   selectedEntry.analysis?.dominant_emotion === "Sad" ? "😔" :
-                   selectedEntry.analysis?.dominant_emotion === "Anxious" ? "😰" :
-                   selectedEntry.analysis?.dominant_emotion === "Angry" ? "😡" :
-                   selectedEntry.analysis?.dominant_emotion === "Calm" ? "😌" : "😐"}
-                </div>
-              </div>
-
-              {/* Summary */}
-              {selectedEntry.analysis?.summary && (
-                <div className="space-y-1">
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">AI Summary</h4>
-                  <p className="text-sm text-gray-600 leading-relaxed bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    "{selectedEntry.analysis.summary}"
-                  </p>
-                </div>
-              )}
-
-              {/* Sentiment Score */}
-              {selectedEntry.analysis && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-semibold text-gray-400 uppercase">
-                    <span>Sentiment Score</span>
-                    <span className={selectedEntry.analysis.sentiment_score >= 0 ? "text-green-600" : "text-red-600"}>
-                      {selectedEntry.analysis.sentiment_score >= 0 ? "+" : ""}
-                      {selectedEntry.analysis.sentiment_score.toFixed(2)}
+            ))}
+          </div>
+        ) : entries.length === 0 ? (
+          <Card>
+            <p className="text-sm text-muted-foreground text-center py-6">
+              No journal entries yet. Start writing above to get your first NLP analysis!
+            </p>
+          </Card>
+        ) : (
+          entries.map((entry) => (
+            <motion.div
+              key={entry.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <Card>
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-foreground">
+                      {formatDate(entry.written_at)}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {formatRelative(entry.written_at)}
                     </span>
                   </div>
-                  {/* Progress bar */}
-                  <div className="w-full bg-gray-100 rounded-full h-2 relative overflow-hidden">
-                    <div 
-                      className={`h-2 rounded-full ${selectedEntry.analysis.sentiment_score >= 0 ? "bg-green-500" : "bg-red-500"}`} 
-                      style={{ 
-                        width: `${Math.abs(selectedEntry.analysis.sentiment_score) * 100}%`,
-                        marginLeft: selectedEntry.analysis.sentiment_score >= 0 ? "0%" : "auto"
-                      }}
-                    />
-                  </div>
+                  {entry.analysis?.dominant_emotion && (
+                    <Badge
+                      variant={
+                        entry.analysis.dominant_emotion === "Happy" ? "success" :
+                        entry.analysis.dominant_emotion === "Sad" ? "info" :
+                        entry.analysis.dominant_emotion === "Anxious" ? "warning" :
+                        entry.analysis.dominant_emotion === "Angry" ? "danger" :
+                        "default"
+                      }
+                      icon={<span>{EMOTION_EMOJIS[entry.analysis.dominant_emotion]}</span>}
+                    >
+                      {entry.analysis.dominant_emotion}
+                    </Badge>
+                  )}
                 </div>
-              )}
-
-              {/* Themes */}
-              {selectedEntry.analysis?.themes && selectedEntry.analysis.themes.length > 0 && (
-                <div className="space-y-2 border-t border-gray-100 pt-4">
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Detected Themes</h4>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedEntry.analysis.themes.map((theme, i) => (
-                      <span key={i} className="text-xs font-semibold px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-700">
-                        {theme}
-                      </span>
-                    ))}
+                <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                  {entry.content}
+                </p>
+                {entry.analysis ? (
+                  <NLPAnalysisPanel analysis={entry.analysis} className="mt-4" />
+                ) : (
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      isLoading={analyzing === entry.id}
+                      onClick={() => handleAnalyze(entry.id)}
+                      icon={<Sparkles className="w-3.5 h-3.5" />}
+                    >
+                      Run NLP Analysis
+                    </Button>
                   </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 text-center py-12 text-gray-500 text-sm">
-              Select a journal entry to view AI sentiment and theme analytics.
-            </div>
-          )}
-        </div>
-
-      </motion.div>
-    </DashboardLayout>
+                )}
+              </Card>
+            </motion.div>
+          ))
+        )}
+      </div>
+    </motion.div>
   )
 }

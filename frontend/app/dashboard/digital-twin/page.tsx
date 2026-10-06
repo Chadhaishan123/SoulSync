@@ -1,163 +1,178 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import DashboardLayout from "../../../components/DashboardLayout"
 import { motion } from "framer-motion"
-import { Brain, ShieldAlert, Activity, Sparkles } from "lucide-react"
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
-
-interface TwinData {
-  current_pattern: string
-  clusters: Record<string, number>
-  total_days: number
-}
+import { Brain, Dna, Layers } from "lucide-react"
+import { api } from "@/lib/api"
+import Card from "@/components/ui/Card"
+import Badge from "@/components/ui/Badge"
+import ProgressRing from "@/components/ui/ProgressRing"
+import ClusterBadge from "@/components/features/ClusterBadge"
+import DigitalTwinChat from "@/components/features/DigitalTwinChat"
+import { SkeletonCard } from "@/components/ui/Skeleton"
+import type { DashboardData } from "@/types/mood"
 
 export default function DigitalTwinPage() {
-  const [twin, setTwin] = useState<TwinData | null>(null)
+  const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
-    setIsClient(true)
-    const token = localStorage.getItem("token")
-    
-    const fetchTwin = async () => {
+    const load = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/insights/dashboard", {
-          headers: { "Authorization": `Bearer ${token}` }
-        })
-        if (res.status === 200) {
-          const data = await res.json()
-          setTwin(data.digital_twin)
-        }
-      } catch (err) {
-        console.error(err)
+        const insights = await api.insights.dashboard()
+        setData(insights)
+      } catch {
+        //
       } finally {
         setLoading(false)
       }
     }
-    
-    fetchTwin()
+    load()
   }, [])
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <p className="text-gray-500 text-center font-medium py-10">Synchronizing digital twin profile...</p>
-      </DashboardLayout>
+      <div className="max-w-3xl mx-auto space-y-6">
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
     )
   }
 
-  // Format cluster data for recharts
-  const chartData = twin 
-    ? Object.keys(twin.clusters).map(key => ({
-        pattern: key.replace(" Pattern", ""),
-        days: twin.clusters[key]
-      }))
-    : []
+  const twin = data?.digital_twin
+  const clusters = twin?.clusters || {}
+  const totalDays = twin?.total_days || 0
+  const pattern = twin?.current_pattern || "Balanced"
+
+  const clusterEntries = Object.entries(clusters)
+  const maxClusterDays = Math.max(...clusterEntries.map(([, v]) => v), 1)
 
   return (
-    <DashboardLayout>
-      <motion.div 
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="space-y-8"
-      >
-        
-        {/* Intro Banner */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 rounded-2xl text-white flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-bold flex items-center gap-2">
-              <Brain className="w-7 h-7 text-blue-100" />
-              SoulSync Digital Twin
-            </h2>
-            <p className="text-blue-100 text-sm max-w-xl">
-              Your digital twin is a dynamic mathematical modeling of your self-reported mood, sleep, stress, and habits. It clusters your logs to identify recurring states.
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-3xl mx-auto space-y-6"
+    >
+      <div>
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Brain className="w-6 h-6 text-soul-purple" />
+          Digital Twin
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Your behavioral profile computed by K-Means clustering on daily wellness vectors (mood, stress, energy, sleep quality).
+        </p>
+      </div>
+
+      {/* Hero Card */}
+      <Card variant="glow" padding="lg">
+        <div className="flex flex-col md:flex-row items-center gap-8">
+          {/* Animated Orb */}
+          <div className="relative">
+            <motion.div
+              className="w-40 h-40 rounded-full bg-gradient-to-br from-soul-purple/20 to-soul-teal/20 flex items-center justify-center"
+              animate={{
+                boxShadow: [
+                  "0 0 30px rgba(124, 92, 252, 0.2)",
+                  "0 0 60px rgba(124, 92, 252, 0.3)",
+                  "0 0 30px rgba(124, 92, 252, 0.2)",
+                ],
+              }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <motion.div
+                className="w-28 h-28 rounded-full bg-gradient-to-br from-soul-purple/30 to-soul-teal/30 flex items-center justify-center"
+                animate={{ rotate: 360 }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+              >
+                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-soul-purple to-soul-teal flex items-center justify-center shadow-glow">
+                  <Dna className="w-8 h-8 text-white" />
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
+
+          {/* Info */}
+          <div className="text-center md:text-left space-y-3">
+            <div className="flex items-center gap-2 justify-center md:justify-start">
+              <Badge variant="purple" size="sm">Active Profile</Badge>
+            </div>
+            <ClusterBadge pattern={pattern} totalDays={totalDays} size="lg" />
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Based on <strong className="text-foreground">{totalDays}</strong> wellness vectors
+              mapped across {clusterEntries.length} behavioral clusters.
             </p>
           </div>
-          <div className="bg-white/10 px-5 py-3 rounded-xl border border-white/10 shrink-0">
-            <p className="text-xs text-blue-200">Current Behavioral State</p>
-            <p className="text-lg font-bold">{twin?.current_pattern || "Balanced Pattern"}</p>
-          </div>
         </div>
+      </Card>
 
-        {/* Core Layout Grid */}
-        <div className="grid lg:grid-cols-3 gap-8">
-          
-          {/* Cluster Frequency Chart */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4 lg:col-span-2">
-            <h3 className="font-bold text-gray-800 text-base">Behavioral Clusters Distribution</h3>
-            <p className="text-xs text-gray-400">Days spent in each pattern according to K-Means clustering.</p>
-            
-            <div className="h-[250px] w-full pt-4">
-              {isClient && twin && twin.total_days > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 5, right: 10, left: -25, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="pattern" stroke="#9ca3af" fontSize={10} />
-                    <YAxis stroke="#9ca3af" fontSize={10} allowDecimals={false} />
-                    <Tooltip />
-                    <Bar dataKey="days" fill="#6366f1" radius={[4, 4, 0, 0]} name="Days" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-xs text-gray-400">
-                  Insufficient data. Log at least 5 check-ins to build cluster distributions.
+      {/* Cluster Distribution */}
+      <Card>
+        <h3 className="text-sm font-bold text-foreground flex items-center gap-2 mb-4">
+          <Layers className="w-4 h-4 text-soul-purple" />
+          Cluster Distribution
+        </h3>
+        <div className="space-y-4">
+          {clusterEntries.map(([name, days], i) => {
+            const percent = totalDays > 0 ? (days / totalDays) * 100 : 0
+            const isActive = name === pattern
+            const colors: Record<string, string> = {
+              Balanced: "bg-emerald-500",
+              "High-Stress": "bg-red-500",
+              "Low-Energy": "bg-amber-500",
+              Recovery: "bg-blue-500",
+            }
+
+            return (
+              <motion.div
+                key={name}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.1 }}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2">
+                    <span className={`w-2.5 h-2.5 rounded-full ${colors[name] || "bg-soul-purple"}`} />
+                    <span className={`text-sm font-medium ${isActive ? "text-foreground" : "text-muted-foreground"}`}>
+                      {name}
+                    </span>
+                    {isActive && <Badge variant="purple" size="sm">Current</Badge>}
+                  </div>
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {days} days ({Math.round(percent)}%)
+                  </span>
                 </div>
-              )}
-            </div>
-          </div>
-
-          {/* Twin Disclaimers & Explanations */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-6">
-            <h3 className="font-bold text-gray-800 text-base">State Profiles</h3>
-            
-            <div className="space-y-4 text-xs">
-              <div className="flex gap-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0 mt-1" />
-                <div>
-                  <h4 className="font-bold text-gray-800">Balanced Pattern</h4>
-                  <p className="text-gray-500 mt-0.5">High self-reported mood, low stress, and steady sleep scores.</p>
+                <div className="h-2 rounded-full bg-muted overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${percent}%` }}
+                    transition={{ duration: 0.8, delay: i * 0.1, ease: "easeOut" }}
+                    className={`h-full rounded-full ${colors[name] || "bg-soul-purple"} ${
+                      isActive ? "shadow-glow-sm" : ""
+                    }`}
+                  />
                 </div>
-              </div>
-
-              <div className="flex gap-3 border-t border-gray-100 pt-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 mt-1" />
-                <div>
-                  <h4 className="font-bold text-gray-800">High-Stress Pattern</h4>
-                  <p className="text-gray-500 mt-0.5">Elevated stress levels accompanied by lower sleep quality ratings.</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 border-t border-gray-100 pt-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 mt-1" />
-                <div>
-                  <h4 className="font-bold text-gray-800">Low-Energy Pattern</h4>
-                  <p className="text-gray-500 mt-0.5">Characterized by lower self-reported energy alongside shorter sleep durations.</p>
-                </div>
-              </div>
-
-              <div className="flex gap-3 border-t border-gray-100 pt-3">
-                <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0 mt-1" />
-                <div>
-                  <h4 className="font-bold text-gray-800">Recovery Pattern</h4>
-                  <p className="text-gray-500 mt-0.5">Self-reported scores show improvements coming out of stressful periods.</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex gap-2.5 text-xs text-amber-800 leading-relaxed">
-              <ShieldAlert className="w-5 h-5 text-amber-600 shrink-0" />
-              <p>
-                <strong>Important:</strong> These profiles are machine-generated clusters of your behavior, not psychiatric labels or diagnoses.
-              </p>
-            </div>
-          </div>
-
+              </motion.div>
+            )
+          })}
         </div>
+      </Card>
 
-      </motion.div>
-    </DashboardLayout>
+      {/* Conversational Digital Twin */}
+      <DigitalTwinChat currentPattern={pattern} totalDays={totalDays} />
+
+      {/* ML Explainer */}
+      <Card className="text-center py-8">
+        <div className="w-12 h-12 rounded-xl bg-soul-purple/10 flex items-center justify-center mx-auto mb-4">
+          <Brain className="w-6 h-6 text-soul-purple" />
+        </div>
+        <h3 className="text-lg font-bold text-foreground mb-2">How It Works</h3>
+        <p className="text-sm text-muted-foreground max-w-lg mx-auto leading-relaxed">
+          Each day you check in, SoulSync creates a 4-dimensional wellness vector
+          (mood, stress, energy, sleep quality). K-Means clustering groups these
+          vectors into behavioral profiles. As you log more data, your Digital Twin
+          becomes increasingly accurate and personalized.
+        </p>
+      </Card>
+    </motion.div>
   )
 }

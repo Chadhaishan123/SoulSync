@@ -1,0 +1,18 @@
+# SoulSync ML/NLP extras — kept separate because these are large.
+#
+# torch (CPU wheel) plus the DistilBERT and FLAN-T5 weights come to roughly
+# 2 GB on first run. They are split out so the API can be installed and run
+# without them: every NLP feature degrades to a documented TF-IDF/lexicon path
+# and reports `engine="lexicon"` rather than silently claiming to be a
+# transformer. That fallback labelling is the point — the previous build
+# swallowed the ImportError and presented keyword counts as DistilBERT output.
+#
+# Install (CPU-only, avoids pulling multi-GB CUDA wheels):
+#   pip install -r requirements-ml.txt --extra-index-url https://download.pytorch.org/whl/cpu
+
+torch==2.9.1
+transformers==4.57.1
+
+# Optional: MiniLM sentence embeddings for semantic retrieval. Without it,
+# retrieval uses TF-IDF cosine similarity, which needs no download at all.
+# sentence-transformers==3.3.1

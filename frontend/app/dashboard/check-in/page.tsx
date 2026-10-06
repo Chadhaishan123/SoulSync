@@ -2,245 +2,167 @@
 
 import React, { useState } from "react"
 import { useRouter } from "next/navigation"
-import DashboardLayout from "../../../components/DashboardLayout"
 import { motion } from "framer-motion"
+import { Smile, Send } from "lucide-react"
+import { api } from "@/lib/api"
+import Card from "@/components/ui/Card"
+import Button from "@/components/ui/Button"
+import Slider from "@/components/ui/Slider"
+import MoodSelector from "@/components/features/MoodSelector"
+import { CONTEXT_TAGS, EMOTION_EMOJIS } from "@/lib/constants"
+import toast from "react-hot-toast"
 
-const emotionOptions = [
-  { label: "Happy", emoji: "😊" },
-  { label: "Sad", emoji: "😔" },
-  { label: "Anxious", emoji: "😰" },
-  { label: "Angry", emoji: "😡" },
-  { label: "Calm", emoji: "😌" },
-  { label: "Neutral", emoji: "😐" }
-]
-
-const tagOptions = [
-  "Work",
-  "Study",
-  "Family",
-  "Friends",
-  "Health",
-  "Exercise",
-  "Travel",
-  "Deadlines"
-]
+const emotions = Object.keys(EMOTION_EMOJIS) as string[]
 
 export default function CheckInPage() {
   const router = useRouter()
-  const [mood, setMood] = useState(6)
+  const [mood, setMood] = useState<number | null>(null)
   const [stress, setStress] = useState(5)
-  const [energy, setEnergy] = useState(6)
-  const [sleepQuality, setSleepQuality] = useState(6)
-  const [primaryEmotion, setPrimaryEmotion] = useState("Neutral")
+  const [energy, setEnergy] = useState(5)
+  const [sleepQuality, setSleepQuality] = useState(5)
+  const [emotion, setEmotion] = useState("Neutral")
   const [tags, setTags] = useState<string[]>([])
-  const [submitting, setSubmitting] = useState(false)
-  const [error, setError] = useState("")
+  const [notes, setNotes] = useState("")
+  const [loading, setLoading] = useState(false)
 
   const toggleTag = (tag: string) => {
-    if (tags.includes(tag)) {
-      setTags(tags.filter(t => t !== tag))
-    } else {
-      setTags([...tags, tag])
-    }
+    setTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSubmitting(true)
-    setError("")
-
-    const token = localStorage.getItem("token")
+  const handleSubmit = async () => {
+    if (!mood) {
+      toast.error("Please select your mood")
+      return
+    }
+    setLoading(true)
     try {
-      const res = await fetch("http://localhost:8000/api/moods", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          mood_score: mood,
-          stress_level: stress,
-          energy_level: energy,
-          sleep_quality: sleepQuality,
-          primary_emotion: primaryEmotion,
-          tags
-        })
+      await api.checkins.create({
+        mood_score: mood,
+        stress_level: stress,
+        energy_level: energy,
+        sleep_quality: sleepQuality,
+        primary_emotion: emotion,
+        context_tags: tags,
+        notes: notes || undefined,
       })
-
-      if (res.status === 200) {
-        router.push("/dashboard")
-      } else {
-        const data = await res.json()
-        setError(data.detail || "Submission failed. Please check inputs.")
-      }
-    } catch (err) {
-      console.error(err)
-      setError("Failed to connect to backend service.")
+      toast.success("Check-in recorded! 🎉")
+      router.push("/dashboard")
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Failed to save check-in")
     } finally {
-      setSubmitting(false)
+      setLoading(false)
     }
   }
 
   return (
-    <DashboardLayout>
-      <motion.div 
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="max-w-2xl mx-auto bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6"
-      >
-        
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">How are you feeling today?</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Log your wellness scores to update your digital twin.</p>
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-2xl mx-auto space-y-6"
+    >
+      <div>
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Smile className="w-6 h-6 text-soul-purple" />
+          Daily Check-In
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          How are you feeling today? This takes less than 30 seconds.
+        </p>
+      </div>
+
+      {/* Mood */}
+      <Card>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          How&apos;s your mood?
+        </span>
+        <div className="mt-4">
+          <MoodSelector value={mood} onChange={setMood} />
         </div>
+      </Card>
 
-        {error && (
-          <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg border border-red-100">
-            {error}
-          </div>
-        )}
+      {/* Sliders */}
+      <Card>
+        <div className="space-y-6">
+          <Slider label="🔥 Stress Level" value={stress} onChange={setStress} />
+          <Slider label="⚡ Energy Level" value={energy} onChange={setEnergy} />
+          <Slider label="😴 Sleep Quality" value={sleepQuality} onChange={setSleepQuality} />
+        </div>
+      </Card>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          
-          {/* Sliders Grid */}
-          <div className="grid sm:grid-cols-2 gap-6">
-            {/* Mood Slider */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-sm font-semibold">
-                <label className="text-gray-700">Mood Score</label>
-                <span className="text-blue-600 font-bold">{mood}/10</span>
-              </div>
-              <input
-                type="range" min="1" max="10" value={mood}
-                onChange={(e) => setMood(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400">
-                <span>Difficult</span>
-                <span>Balanced</span>
-                <span>Excellent</span>
-              </div>
-            </div>
-
-            {/* Stress Slider */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-sm font-semibold">
-                <label className="text-gray-700">Stress Level</label>
-                <span className="text-blue-600 font-bold">{stress}/10</span>
-              </div>
-              <input
-                type="range" min="1" max="10" value={stress}
-                onChange={(e) => setStress(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400">
-                <span>Relaxed</span>
-                <span>Moderate</span>
-                <span>Overwhelmed</span>
-              </div>
-            </div>
-
-            {/* Energy Slider */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-sm font-semibold">
-                <label className="text-gray-700">Energy Level</label>
-                <span className="text-blue-600 font-bold">{energy}/10</span>
-              </div>
-              <input
-                type="range" min="1" max="10" value={energy}
-                onChange={(e) => setEnergy(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400">
-                <span>Exhausted</span>
-                <span>Active</span>
-                <span>Hyperactive</span>
-              </div>
-            </div>
-
-            {/* Sleep Slider */}
-            <div className="space-y-2">
-              <div className="flex justify-between items-center text-sm font-semibold">
-                <label className="text-gray-700">Sleep Quality</label>
-                <span className="text-blue-600 font-bold">{sleepQuality}/10</span>
-              </div>
-              <input
-                type="range" min="1" max="10" value={sleepQuality}
-                onChange={(e) => setSleepQuality(parseInt(e.target.value))}
-                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400">
-                <span>Poor</span>
-                <span>Restful</span>
-                <span>Perfect</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Primary Emotion Selector */}
-          <div className="space-y-2 border-t border-gray-100 pt-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Primary Emotion</label>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {emotionOptions.map((opt) => {
-                const isSelected = primaryEmotion === opt.label
-                return (
-                  <button
-                    key={opt.label}
-                    type="button"
-                    onClick={() => setPrimaryEmotion(opt.label)}
-                    className={`flex flex-col items-center justify-center p-3 border rounded-xl transition-all ${
-                      isSelected 
-                        ? "border-blue-500 bg-blue-50/50 text-blue-700 font-bold shadow-sm" 
-                        : "border-gray-200 text-gray-600 hover:border-gray-300"
-                    }`}
-                  >
-                    <span className="text-2xl">{opt.emoji}</span>
-                    <span className="text-xs mt-1">{opt.label}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Contextual Tags */}
-          <div className="space-y-2 border-t border-gray-100 pt-6">
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Context Tags</label>
-            <div className="flex flex-wrap gap-2">
-              {tagOptions.map(tag => {
-                const isSelected = tags.includes(tag)
-                return (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    className={`text-xs font-semibold px-4 py-2 border rounded-full transition-colors ${
-                      isSelected 
-                        ? "bg-blue-600 border-blue-600 text-white" 
-                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300"
-                    }`}
-                  >
-                    {tag}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {/* Submit Action */}
-          <div className="flex justify-end border-t border-gray-100 pt-6">
-            <button
-              type="submit"
-              disabled={submitting}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-8 py-3 rounded-lg shadow-md transition-colors"
+      {/* Emotion */}
+      <Card>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 block">
+          Primary Emotion
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {emotions.map((e) => (
+            <motion.button
+              key={e}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setEmotion(e)}
+              className={`
+                flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all
+                ${emotion === e
+                  ? "bg-soul-purple/20 text-soul-purple border border-soul-purple/30"
+                  : "bg-secondary text-muted-foreground border border-transparent hover:bg-secondary/80"
+                }
+              `}
             >
-              {submitting ? "Logging..." : "Submit Log Check-In"}
+              <span>{EMOTION_EMOJIS[e]}</span>
+              {e}
+            </motion.button>
+          ))}
+        </div>
+      </Card>
+
+      {/* Context Tags */}
+      <Card>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 block">
+          Context Tags (optional)
+        </span>
+        <div className="flex flex-wrap gap-2">
+          {CONTEXT_TAGS.map((tag) => (
+            <button
+              key={tag}
+              onClick={() => toggleTag(tag)}
+              className={`
+                px-3 py-1.5 rounded-full text-xs font-medium transition-all
+                ${tags.includes(tag)
+                  ? "bg-soul-teal/20 text-soul-teal border border-soul-teal/30"
+                  : "bg-secondary text-muted-foreground border border-transparent hover:bg-secondary/80"
+                }
+              `}
+            >
+              {tag}
             </button>
-          </div>
+          ))}
+        </div>
+      </Card>
 
-        </form>
+      {/* Notes */}
+      <Card>
+        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 block">
+          Notes (optional)
+        </span>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Anything else you'd like to note about today..."
+          className="w-full h-24 px-4 py-3 rounded-lg bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary transition-all resize-none text-sm"
+        />
+      </Card>
 
-      </motion.div>
-    </DashboardLayout>
+      {/* Submit */}
+      <Button
+        onClick={handleSubmit}
+        isLoading={loading}
+        size="lg"
+        className="w-full"
+        icon={<Send className="w-4 h-4" />}
+      >
+        Submit Check-In
+      </Button>
+    </motion.div>
   )
 }

@@ -1,213 +1,147 @@
 "use client"
 
 import React, { useEffect, useState } from "react"
-import DashboardLayout from "../../../components/DashboardLayout"
 import { motion } from "framer-motion"
-import { 
-  LineChart as ReChartsLine, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer,
-  BarChart,
-  Bar
-} from "recharts"
-import { Info, HelpCircle } from "lucide-react"
-
-interface HistoryItem {
-  id: number
-  date: string
-  mood: number
-  stress: number
-  energy: number
-  sleep_quality: number
-  emotion: string
-  tags: string[]
-}
-
-interface CorrelationItem {
-  pattern_type: string
-  description: string
-  confidence_score: number
-}
-
-interface SleepVsMoodItem {
-  sleep_range: string
-  avg_mood: number
-  supporting_days: number
-}
+import { LineChart as LineChartIcon } from "lucide-react"
+import { api } from "@/lib/api"
+import Card from "@/components/ui/Card"
+import { SkeletonChart } from "@/components/ui/Skeleton"
+import AnomalyAlert from "@/components/features/AnomalyAlert"
+import TrendBanner from "@/components/features/TrendBanner"
+import ClusterBadge from "@/components/features/ClusterBadge"
+import MoodTrendChart from "@/components/charts/MoodTrendChart"
+import type { DashboardData, MoodEntry } from "@/types/mood"
 
 export default function InsightsPage() {
-  const [history, setHistory] = useState<HistoryItem[]>([])
-  const [patterns, setPatterns] = useState<CorrelationItem[]>([])
-  const [sleepVsMood, setSleepVsMood] = useState<SleepVsMoodItem[]>([])
+  const [data, setData] = useState<DashboardData | null>(null)
+  const [checkins, setCheckins] = useState<MoodEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [isClient, setIsClient] = useState(false)
 
   useEffect(() => {
-    setIsClient(true)
-    const token = localStorage.getItem("token")
-    
-    const fetchInsights = async () => {
+    const load = async () => {
       try {
-        const historyRes = await fetch("http://localhost:8000/api/moods/history", {
-          headers: { "Authorization": `Bearer ${token}` }
-        })
-        if (historyRes.status === 200) {
-          setHistory(await historyRes.json())
-        }
-
-        const patternsRes = await fetch("http://localhost:8000/api/insights/patterns", {
-          headers: { "Authorization": `Bearer ${token}` }
-        })
-        if (patternsRes.status === 200) {
-          const patData = await patternsRes.json()
-          setPatterns(patData.patterns)
-          setSleepVsMood(patData.sleep_vs_mood)
-        }
-      } catch (err) {
-        console.error(err)
+        const [insights, entries] = await Promise.allSettled([
+          api.insights.dashboard(),
+          api.checkins.list(),
+        ])
+        if (insights.status === "fulfilled") setData(insights.value)
+        if (entries.status === "fulfilled") setCheckins(entries.value)
+      } catch {
+        //
       } finally {
         setLoading(false)
       }
     }
-    fetchInsights()
+    load()
   }, [])
 
   if (loading) {
     return (
-      <DashboardLayout>
-        <p className="text-gray-500 text-center font-medium py-10">Compiling historical charts...</p>
-      </DashboardLayout>
+      <div className="space-y-6 max-w-4xl mx-auto">
+        <SkeletonChart />
+        <SkeletonChart />
+      </div>
     )
   }
 
-  const totalDays = history.length
-
   return (
-    <DashboardLayout>
-      <motion.div 
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="space-y-8"
-      >
-        
-        {/* Intro */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-200">
-          <h2 className="text-2xl font-bold text-gray-900">Pattern Explorer</h2>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Interactively explore your logged timeline. This pattern mapping is compiled from your last {totalDays} recorded days.
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="max-w-4xl mx-auto space-y-6"
+    >
+      <div>
+        <h2 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <LineChartIcon className="w-6 h-6 text-soul-purple" />
+          Insights & Analytics
+        </h2>
+        <p className="text-sm text-muted-foreground mt-1">
+          Machine learning analysis of your wellness data — K-Means clustering, Isolation Forest anomaly detection, and Random Forest trend prediction.
+        </p>
+      </div>
+
+      {/* Summary Row */}
+      <div className="grid md:grid-cols-3 gap-4">
+        {/* Cluster */}
+        <Card className="text-center py-6">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Behavioral Cluster (K-Means)
+          </span>
+          <div className="mt-3">
+            <ClusterBadge
+              pattern={data?.digital_twin?.current_pattern || "Balanced"}
+              totalDays={data?.digital_twin?.total_days}
+              size="lg"
+            />
+          </div>
+          {data?.digital_twin?.clusters && (
+            <div className="mt-4 space-y-1.5">
+              {Object.entries(data.digital_twin.clusters).map(([name, count]) => (
+                <div key={name} className="flex items-center justify-between text-xs px-3">
+                  <span className="text-muted-foreground">{name}</span>
+                  <span className="text-foreground font-medium">{count} days</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Trend */}
+        <Card className="py-6">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Trend Prediction (Random Forest)
+          </span>
+          {data?.trend_prediction && (
+            <div className="mt-3">
+              <TrendBanner trend={data.trend_prediction} />
+            </div>
+          )}
+        </Card>
+
+        {/* Anomaly */}
+        <Card className="py-6">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+            Anomaly Detection (Isolation Forest)
+          </span>
+          {data?.anomaly ? (
+            data.anomaly.is_anomaly ? (
+              <AnomalyAlert anomaly={data.anomaly} className="mt-3" />
+            ) : (
+              <div className="mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500/10">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-xs text-emerald-400 font-medium">
+                  No anomalies detected — you&apos;re within baseline
+                </span>
+              </div>
+            )
+          ) : null}
+        </Card>
+      </div>
+
+      {/* Mood Trend Chart */}
+      <Card>
+        <div className="mb-4">
+          <h3 className="text-sm font-bold text-foreground">Mood, Stress & Energy Over Time</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Tracking {checkins.length} check-ins
           </p>
         </div>
-
-        {/* Timeline Charts Grid */}
-        <div className="grid lg:grid-cols-2 gap-8">
-          
-          {/* Mood & Stress Timeline */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-gray-800 text-base">Mood vs. Stress Timeline</h3>
-            <div className="h-[280px] w-full">
-              {isClient && history.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <ReChartsLine data={history} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="date" stroke="#9ca3af" fontSize={10} />
-                    <YAxis domain={[1, 10]} stroke="#9ca3af" fontSize={10} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="mood" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Mood" />
-                    <Line type="monotone" dataKey="stress" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} name="Stress" />
-                  </ReChartsLine>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-xs text-gray-400">No data points logged yet.</div>
-              )}
-            </div>
+        <div className="flex items-center gap-4 mb-3">
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-[3px] rounded-full bg-soul-purple" />
+            <span className="text-[10px] text-muted-foreground">Mood</span>
           </div>
-
-          {/* Energy & Sleep Quality Timeline */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-            <h3 className="font-bold text-gray-800 text-base">Energy vs. Sleep Quality Timeline</h3>
-            <div className="h-[280px] w-full">
-              {isClient && history.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <ReChartsLine data={history} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="date" stroke="#9ca3af" fontSize={10} />
-                    <YAxis domain={[1, 10]} stroke="#9ca3af" fontSize={10} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="energy" stroke="#10b981" strokeWidth={2.5} dot={{ r: 4 }} name="Energy" />
-                    <Line type="monotone" dataKey="sleep_quality" stroke="#6366f1" strokeWidth={2} dot={{ r: 3 }} name="Sleep Quality" />
-                  </ReChartsLine>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-xs text-gray-400">No data points logged yet.</div>
-              )}
-            </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-[3px] rounded-full bg-soul-teal" />
+            <span className="text-[10px] text-muted-foreground">Energy</span>
           </div>
-
+          <div className="flex items-center gap-1.5">
+            <div className="w-3 h-[3px] rounded-full bg-soul-coral" />
+            <span className="text-[10px] text-muted-foreground">Stress</span>
+          </div>
         </div>
-
-        {/* Pattern Explorer: Sleep vs Mood */}
-        <div className="grid lg:grid-cols-3 gap-8">
-          
-          {/* Correlation explanation & list */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4 lg:col-span-1">
-            <h3 className="font-bold text-gray-800 text-base flex items-center gap-2">
-              <Info className="w-5 h-5 text-blue-600" />
-              Observed Patterns
-            </h3>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              These correlations represent mathematical connections detected in your self-reported inputs over time and do not establish clinical causality.
-            </p>
-            <div className="space-y-4 pt-2">
-              {patterns.length > 0 ? (
-                patterns.map((pat, idx) => (
-                  <div key={idx} className="bg-blue-50/50 p-4 rounded-xl border border-blue-100/60 space-y-1.5">
-                    <span className="text-[10px] font-bold text-blue-700 uppercase bg-blue-100 px-2 py-0.5 rounded">
-                      Confidence: {Math.round(pat.confidence_score * 100)}%
-                    </span>
-                    <p className="text-xs font-semibold text-blue-900 leading-relaxed">
-                      {pat.description}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-gray-400 py-4 text-center">Logging at least 10 entries is required to compile patterns.</p>
-              )}
-            </div>
-          </div>
-
-          {/* Sleep vs Mood Bar Chart */}
-          <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-4 lg:col-span-2">
-            <div>
-              <h3 className="font-bold text-gray-800 text-base">Sleep Duration vs. Average Mood</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Explore average mood scores mapped against categories of sleep durations.</p>
-            </div>
-            <div className="h-[250px] w-full">
-              {isClient && sleepVsMood.some(x => x.supporting_days > 0) ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={sleepVsMood} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                    <XAxis dataKey="sleep_range" stroke="#9ca3af" fontSize={10} />
-                    <YAxis domain={[0, 10]} stroke="#9ca3af" fontSize={10} />
-                    <Tooltip />
-                    <Bar dataKey="avg_mood" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Average Mood" />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-xs text-gray-400">
-                  Insufficient data. Log both daily check-ins and sleep records to compile sleep-mood correlation charts.
-                </div>
-              )}
-            </div>
-          </div>
-
-        </div>
-
-      </motion.div>
-    </DashboardLayout>
+        <MoodTrendChart data={checkins} height={300} />
+      </Card>
+    </motion.div>
   )
 }
