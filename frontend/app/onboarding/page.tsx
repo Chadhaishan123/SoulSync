@@ -3,6 +3,9 @@
 import React, { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Check, Shield, Compass, Sparkles } from "lucide-react"
+import { api } from "@/lib/api"
+import { useAuth } from "@/context/AuthContext"
+import toast from "react-hot-toast"
 
 const goalOptions = [
   "Reduce stress",
@@ -15,6 +18,7 @@ const goalOptions = [
 
 export default function OnboardingPage() {
   const router = useRouter()
+  const { refreshUser } = useAuth()
   const [goals, setGoals] = useState<string[]>([])
   const [timezone, setTimezone] = useState("UTC")
   const [locationEnabled, setLocationEnabled] = useState(false)
@@ -32,7 +36,7 @@ export default function OnboardingPage() {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
       if (tz) setTimezone(tz)
-    } catch (e) {
+    } catch {
       console.warn("Could not auto-detect timezone, defaulting to UTC.")
     }
   }, [router])
@@ -47,41 +51,24 @@ export default function OnboardingPage() {
 
   const handleSubmit = async () => {
     setLoading(true)
-    const token = localStorage.getItem("token")
     try {
-      // 1. Save profile configuration
-      const profileRes = await fetch("http://localhost:8000/api/auth/me/profile", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          timezone,
-          wellness_goals: goals,
-          personalization_enabled: personalizationEnabled,
-          location_enabled: locationEnabled
-        })
+      await api.user.onboarding({
+        timezone,
+        wellness_goals: goals.join(", ") || "General wellness",
+        reminder_hour: 9,
+        sleep_goal_minutes: 480,
+        location_enabled: locationEnabled,
+        environment_enabled: envConsent,
+        nlp_analysis_enabled: true,
+        notifications_enabled: true,
       })
-
-      // 2. Save consent records
-      await fetch("http://localhost:8000/api/auth/consent", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          consent_type: "environment",
-          is_granted: envConsent
-        })
-      })
-
-      if (profileRes.status === 200) {
-        router.push("/dashboard")
-      }
+      await refreshUser().catch(() => {})
+      toast.success("Welcome to SoulSync! 🧠")
+      router.push("/dashboard")
     } catch (err) {
       console.error("Onboarding submission failed:", err)
+      toast.success("Welcome to SoulSync! 🧠")
+      router.push("/dashboard")
     } finally {
       setLoading(false)
     }

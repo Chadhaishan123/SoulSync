@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
+import { api } from "@/lib/api"
 import { 
   LayoutDashboard, 
   Smile, 
@@ -51,18 +52,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Fetch user name
     const fetchUser = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/auth/me", {
-          headers: {
-            "Authorization": `Bearer ${token}`
-          }
-        })
-        if (res.status === 200) {
-          const data = await res.json()
+        const data = await api.user.getMe()
+        if (data && data.name) {
           setUserName(data.name)
-        } else {
-          // Token might have expired
-          localStorage.removeItem("token")
-          router.push("/login")
         }
       } catch (err) {
         console.error("Auth fetch failed:", err)
