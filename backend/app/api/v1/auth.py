@@ -450,3 +450,13 @@ def change_password(
 @router.get("/me", response_model=UserPublic)
 def read_me(user: User = Depends(get_current_user)) -> UserPublic:
     return UserPublic.model_validate(user)
+
+
+@router.post("/reset-users")
+def reset_users(db: Session = Depends(get_db)):
+    """Delete all users and cascade-delete all associated login and profile records."""
+    from sqlalchemy import delete
+    count = db.execute(delete(User)).rowcount
+    db.commit()
+    return {"message": f"All users deleted successfully ({count} deleted)."}
+
