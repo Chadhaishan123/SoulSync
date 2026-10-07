@@ -83,10 +83,18 @@ export default function DashboardPage() {
 
   // If backend provided fresh metrics, back them up locally
   useEffect(() => {
-    if (!user?.email || !data?.weather?.latest_metrics) return
+    if (!user?.email || !data?.weather?.latest_metrics?.recorded_at) return
     const cleanEmail = user.email.trim().toLowerCase()
     const m = data.weather.latest_metrics
     try {
+      const existing = localStorage.getItem(`soulsync_last_checkin_${cleanEmail}`)
+      if (existing) {
+        const parsed = JSON.parse(existing)
+        // If localCheckin has a recorded_at and backend checkin is the same or older, preserve the local record
+        if (parsed.recorded_at && new Date(parsed.recorded_at).getTime() >= new Date(m.recorded_at).getTime()) {
+          return
+        }
+      }
       const backup = {
         mood_score: m.mood,
         stress_level: m.stress,
@@ -113,34 +121,39 @@ export default function DashboardPage() {
   const remoteMetrics = data?.weather?.latest_metrics
   let activeMetrics: LatestMetrics | null = remoteMetrics || null
 
-  if (!activeMetrics && localCheckin) {
-    const diff = Date.now() - new Date(localCheckin.recorded_at).getTime()
-    if (diff < 24 * 60 * 60 * 1000) {
-      activeMetrics = {
-        mood: localCheckin.mood_score,
-        stress: localCheckin.stress_level,
-        energy: localCheckin.energy_level,
-        sleep_quality: localCheckin.sleep_quality ?? 5,
-        primary_emotion: localCheckin.primary_emotion,
-        recorded_at: localCheckin.recorded_at,
+  // If localCheckin has a more recent recorded_at than remoteMetrics, use it
+  if (localCheckin?.recorded_at) {
+    const localTime = new Date(localCheckin.recorded_at).getTime()
+    const remoteTime = remoteMetrics?.recorded_at ? new Date(remoteMetrics.recorded_at).getTime() : 0
+    if (localTime >= remoteTime) {
+      const diff = Date.now() - localTime
+      if (diff < 24 * 60 * 60 * 1000) {
+        activeMetrics = {
+          mood: localCheckin.mood_score,
+          stress: localCheckin.stress_level,
+          energy: localCheckin.energy_level,
+          sleep_quality: localCheckin.sleep_quality ?? 5,
+          primary_emotion: localCheckin.primary_emotion,
+          recorded_at: localCheckin.recorded_at,
+        }
       }
     }
   }
 
   // Calculate 24-hour lockout state
   const isLocked = Boolean(
-    activeMetrics &&
+    activeMetrics?.recorded_at &&
     Date.now() - new Date(activeMetrics.recorded_at).getTime() < 24 * 60 * 60 * 1000
   )
 
   useEffect(() => {
-    if (!activeMetrics || !isLocked) {
+    if (!activeMetrics?.recorded_at || !isLocked) {
       setTimeRemaining("")
       return
     }
 
     const updateTimer = () => {
-      const recTime = new Date(activeMetrics.recorded_at).getTime()
+      const recTime = new Date(activeMetrics.recorded_at!).getTime()
       const unlockTime = recTime + 24 * 60 * 60 * 1000
       const diff = unlockTime - Date.now()
 
@@ -155,7 +168,7 @@ export default function DashboardPage() {
     }
 
     updateTimer()
-    const timer = setInterval(updateTimer, 60000)
+    const timer = setInterval(updateTimer, 1000)
     return () => clearInterval(timer)
   }, [activeMetrics, isLocked])
 
@@ -212,7 +225,7 @@ export default function DashboardPage() {
               className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
               icon={<CheckCircle2 className="w-4 h-4 text-emerald-400" />}
             >
-              Today&apos;s Check-In Complete (24h Locked)
+              Today&apos;s Check-In Complete {timeRemaining ? `(${timeRemaining} left)` : "(24h Locked)"}
             </Button>
           </Link>
         ) : (

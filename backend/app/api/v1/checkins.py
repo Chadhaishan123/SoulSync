@@ -34,8 +34,8 @@ def create_checkin(
     Computes `local_date` from the user's profile timezone so streaks and
     daily aggregates respect their actual calendar day.
     """
-    now = utcnow()
-    local_dt = local_date_for(profile, now)
+    rec_time = payload.recorded_at or utcnow()
+    local_dt = local_date_for(profile, rec_time)
 
     entry = MoodEntry(
         user_id=user.id,
@@ -46,7 +46,7 @@ def create_checkin(
         primary_emotion=payload.primary_emotion,
         context_tags=payload.context_tags,
         note=payload.notes,
-        recorded_at=now,
+        recorded_at=rec_time,
         local_date=local_dt,
     )
     db.add(entry)

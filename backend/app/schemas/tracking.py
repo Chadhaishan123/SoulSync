@@ -21,6 +21,7 @@ class CheckinCreate(ORMModel):
     primary_emotion: Optional[str] = Field(None, max_length=40)
     context_tags: List[str] = Field(default_factory=list)
     notes: Optional[str] = Field(None, max_length=2000)
+    recorded_at: Optional[dt.datetime] = None
 
 
 class CheckinOut(ORMModel):

@@ -121,25 +121,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch {}
       }
 
-      // Check if user has a recent check-in saved locally to sync back to backend if backend was restarted
-      try {
-        const rawCheckin = localStorage.getItem(`soulsync_last_checkin_${cleanEmail}`)
-        if (rawCheckin) {
-          const checkin = JSON.parse(rawCheckin)
-          const diff = Date.now() - new Date(checkin.recorded_at).getTime()
-          if (diff < 24 * 60 * 60 * 1000) {
-            api.checkins.create({
-              mood_score: checkin.mood_score,
-              stress_level: checkin.stress_level,
-              energy_level: checkin.energy_level,
-              sleep_quality: checkin.sleep_quality,
-              primary_emotion: checkin.primary_emotion,
-              context_tags: checkin.context_tags || [],
-              notes: checkin.notes || checkin.note,
-            }).catch(() => {})
-          }
-        }
-      } catch {}
+
 
       setUser(me)
       try {
@@ -187,25 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }).catch(() => {})
           }
 
-          // Restore checkin
-          try {
-            const rawCheckin = localStorage.getItem(`soulsync_last_checkin_${cleanEmail}`)
-            if (rawCheckin) {
-              const checkin = JSON.parse(rawCheckin)
-              const diff = Date.now() - new Date(checkin.recorded_at).getTime()
-              if (diff < 24 * 60 * 60 * 1000) {
-                await api.checkins.create({
-                  mood_score: checkin.mood_score,
-                  stress_level: checkin.stress_level,
-                  energy_level: checkin.energy_level,
-                  sleep_quality: checkin.sleep_quality,
-                  primary_emotion: checkin.primary_emotion,
-                  context_tags: checkin.context_tags || [],
-                  notes: checkin.notes || checkin.note,
-                }).catch(() => {})
-              }
-            }
-          } catch {}
+
 
           setUser(me)
           return

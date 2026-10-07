@@ -71,6 +71,7 @@ export default function CheckInPage() {
               primary_emotion: candidate.primary_emotion,
               context_tags: candidate.context_tags || [],
               notes: candidate.notes || candidate.note,
+              recorded_at: candidate.recorded_at,
             }).catch(() => {})
           }
         }
@@ -179,6 +180,7 @@ export default function CheckInPage() {
         primary_emotion: emotion,
         context_tags: tags,
         notes: notes || undefined,
+        recorded_at: nowIso,
       })
       toast.success("Check-in recorded! 🎉")
       router.push("/dashboard")

@@ -20,6 +20,7 @@ export interface CheckinPayload {
   primary_emotion: string
   context_tags?: string[]
   notes?: string
+  recorded_at?: string
 }
 
 export interface LatestMetrics {
