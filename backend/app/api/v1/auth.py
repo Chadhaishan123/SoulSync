@@ -323,6 +323,54 @@ def logout_everywhere(
     return Message(detail=f"Signed out of {count} session(s)")
 
 
+def _send_reset_email(to_email: str, reset_link: str) -> bool:
+    """Send HTML & plain-text password reset email via configured SMTP server."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "SoulSync - Reset Your Password"
+    msg["From"] = settings.SMTP_FROM_EMAIL
+    msg["To"] = to_email
+
+    text = (
+        f"Hello,\n\n"
+        f"A password reset was requested for your SoulSync account. Click the link below to set a new password:\n\n"
+        f"{reset_link}\n\n"
+        f"This link expires in {settings.PASSWORD_RESET_EXPIRE_MINUTES} minutes.\n\n"
+        f"If you did not make this request, you can safely ignore this email."
+    )
+    html = f"""
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+      <h2 style="color: #6366f1; margin-top: 0;">SoulSync Password Reset</h2>
+      <p style="color: #475569; font-size: 15px; line-height: 1.6;">Hello,</p>
+      <p style="color: #475569; font-size: 15px; line-height: 1.6;">We received a request to reset your SoulSync password. Click the button below to choose a new password:</p>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="{reset_link}" style="display: inline-block; background: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px;">Reset My Password</a>
+      </div>
+      <p style="color: #94a3b8; font-size: 13px;">Or copy and paste this link into your browser:<br><a href="{reset_link}" style="color: #6366f1;">{reset_link}</a></p>
+      <p style="color: #94a3b8; font-size: 12px; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 16px;">This link will expire in {settings.PASSWORD_RESET_EXPIRE_MINUTES} minutes. If you did not request a password reset, no action is needed.</p>
+    </div>
+    """
+    msg.attach(MIMEText(text, "plain"))
+    msg.attach(MIMEText(html, "html"))
+
+    try:
+        server = smtplib.SMTP(settings.SMTP_HOST, settings.SMTP_PORT, timeout=10)
+        if settings.SMTP_PORT == 587:
+            server.starttls()
+        if settings.SMTP_USER and settings.SMTP_PASSWORD:
+            server.login(settings.SMTP_USER, settings.SMTP_PASSWORD)
+        server.sendmail(settings.SMTP_FROM_EMAIL, [to_email], msg.as_string())
+        server.quit()
+        log.info("Password reset email sent to %s", to_email)
+        return True
+    except Exception as exc:
+        log.warning("Failed to send reset email via SMTP: %s", exc)
+        return False
+
+
 @router.post("/forgot-password", response_model=ForgotPasswordResponse)
 @limiter.limit(settings.RATE_LIMIT_PASSWORD_RESET)
 def forgot_password(
@@ -332,15 +380,13 @@ def forgot_password(
     db: Session = Depends(get_db),
 ) -> ForgotPasswordResponse:
     """
-    Issue a password reset token.
+    Issue a password reset token and send reset link to the registered email.
 
-    The response is identical whether or not the email exists. In development
-    the token is returned in the body because no SMTP is configured — printing
-    "check your inbox" when nothing was sent would be a lie, so the honest
-    behaviour is to hand the token over and say why.
+    If SMTP is configured, sends a real email. In development / testing environments,
+    the reset link and token are also included in the response.
     """
     generic = (
-        "If an account exists for that email, a password reset link has been issued."
+        "If an account exists for that email, a password reset link has been sent to your registered email address."
     )
     email = _normalise_email(payload.email)
     user = db.scalar(select(User).where(User.email == email))
@@ -360,19 +406,17 @@ def forgot_password(
     )
     db.commit()
 
-    if settings.is_production:
-        # TODO(phase-10): send via SMTP once credentials are supplied. Until
-        # then production deliberately returns no token rather than exposing
-        # one in an HTTP response.
-        log.info("Password reset requested for user_id=%s", user.id)
-        return ForgotPasswordResponse(detail=generic)
+    reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={raw_token}"
+
+    if settings.SMTP_HOST:
+        _send_reset_email(email, reset_link)
+
+    log.info("Password reset link created for user_id=%s: %s", user.id, reset_link)
 
     return ForgotPasswordResponse(
-        detail=(
-            f"{generic} No email service is configured in development, so the "
-            "token is included here."
-        ),
-        dev_token=raw_token,
+        detail=generic,
+        dev_token=raw_token if not settings.is_production else None,
+        reset_link=reset_link if not settings.is_production else None,
         expires_in_minutes=settings.PASSWORD_RESET_EXPIRE_MINUTES,
     )
 

@@ -166,6 +166,16 @@ export const api = {
         "/api/v1/auth/refresh",
         { method: "POST", body: { refresh_token: token } }
       ),
+    forgotPassword: (email: string) =>
+      request<{ detail: string; dev_token?: string; reset_link?: string; expires_in_minutes?: number }>(
+        "/api/v1/auth/forgot-password",
+        { method: "POST", body: { email } }
+      ),
+    resetPassword: (token: string, password: string) =>
+      request<{ detail: string }>("/api/v1/auth/reset-password", {
+        method: "POST",
+        body: { token, password },
+      }),
   },
 
   user: {

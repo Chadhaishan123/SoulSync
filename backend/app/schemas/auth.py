@@ -79,15 +79,11 @@ class ForgotPasswordResponse(BaseModel):
     """
     Always reports the same message regardless of whether the email exists —
     otherwise this endpoint becomes an account enumeration oracle.
-
-    `dev_token` is populated only when ENVIRONMENT is not production, because
-    there is no SMTP configured. Faking a "sent!" confirmation with no email
-    behind it would be dishonest; showing the token in development is the
-    honest version.
     """
 
     detail: str
     dev_token: Optional[str] = None
+    reset_link: Optional[str] = None
     expires_in_minutes: Optional[int] = None
 
 

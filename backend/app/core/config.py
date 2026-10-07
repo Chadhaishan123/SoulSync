@@ -51,6 +51,14 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     PASSWORD_RESET_EXPIRE_MINUTES: int = 30
 
+    # -------------------------------------------------------- email / reset
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@soulsync.app"
+    FRONTEND_URL: str = "http://localhost:3000"
+
     # ------------------------------------------------------------ database
     # Blank => zero-setup SQLite at backend/soulsync.db
     DATABASE_URL: str = ""
