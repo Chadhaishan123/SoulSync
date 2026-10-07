@@ -235,13 +235,23 @@ NEGATIVE_WORDS = {
 }
 
 EMOTION_KEYWORDS: Dict[str, List[str]] = {
-    "Happy": ["happy", "joy", "great", "wonderful", "excited", "delighted", "cheerful", "fun",
-              "love", "grateful", "thankful", "blessed", "proud", "amazing"],
-    "Sad": ["sad", "depressed", "lonely", "miserable", "cry", "empty", "heartbroken", "hopeless"],
-    "Anxious": ["anxious", "worried", "nervous", "stressed", "overwhelmed", "panic", "fear", "scared"],
-    "Angry": ["angry", "frustrated", "annoyed", "irritated", "furious", "rage"],
-    "Calm": ["calm", "peaceful", "relaxed", "content", "serene", "rested", "balanced"],
+    "Happy": ["happy", "joy", "great", "good", "wonderful", "excited", "delighted", "cheerful", "fun",
+              "love", "grateful", "thankful", "blessed", "proud", "amazing", "smiling"],
+    "Sad": ["sad", "depressed", "depressing", "depression", "lonely", "miserable", "cry", "crying",
+            "empty", "heartbroken", "hopeless", "down", "unhappy", "gloomy", "grief", "sorrow", "hurt", "awful"],
+    "Anxious": ["anxious", "worried", "nervous", "stressed", "overwhelmed", "panic", "fear", "scared", "tense", "dread"],
+    "Angry": ["angry", "frustrated", "annoyed", "irritated", "furious", "rage", "mad", "hate"],
+    "Calm": ["calm", "peaceful", "relaxed", "content", "serene", "rested", "balanced", "chill", "zen"],
 }
+
+EMOTION_PREFIXES: Dict[str, tuple[str, ...]] = {
+    "Sad": ("depress", "sad", "lone", "grief", "sorrow", "miser", "unhapp", "crying", "heartbreak", "hopeless", "gloom"),
+    "Anxious": ("anxi", "nervous", "stress", "worr", "panic", "fear", "scare", "fright", "overwhelm", "tense"),
+    "Angry": ("angr", "furious", "mad", "frustrat", "annoy", "irritat", "rage", "hate"),
+    "Happy": ("happ", "joy", "delight", "excit", "cheer", "great", "wonder", "amaz", "love", "bless", "grate", "thank"),
+    "Calm": ("calm", "relax", "peace", "seren", "rested", "chill", "zen", "tranquil"),
+}
+
 
 THEME_KEYWORDS: Dict[str, List[str]] = {
     "work": ["work", "job", "office", "meeting", "deadline", "project", "boss", "colleague"],
@@ -311,8 +321,11 @@ def _analyze_lexicon(text: str) -> Dict[str, Any]:
             "processing_ms": elapsed,
         }
 
-    pos_count = sum(1 for w in words if w in POSITIVE_WORDS)
-    neg_count = sum(1 for w in words if w in NEGATIVE_WORDS)
+    neg_prefixes = ("depress", "sad", "lone", "miser", "angr", "anxi", "stress", "worr", "panic", "fear", "hurt", "terribl", "awful", "horribl")
+    pos_prefixes = ("happ", "joy", "delight", "excit", "wonder", "amaz", "grate", "thank", "bless", "peace", "relax", "calm", "good")
+
+    pos_count = sum(1 for w in words if w in POSITIVE_WORDS or any(w.startswith(p) for p in pos_prefixes))
+    neg_count = sum(1 for w in words if w in NEGATIVE_WORDS or any(w.startswith(p) for p in neg_prefixes))
     total_signal = pos_count + neg_count
 
     sentiment_score = round((pos_count - neg_count) / total_signal, 3) if total_signal > 0 else 0.0
@@ -322,7 +335,8 @@ def _analyze_lexicon(text: str) -> Dict[str, Any]:
     # Emotions
     emotion_scores: Dict[str, float] = {}
     for emotion, kws in EMOTION_KEYWORDS.items():
-        hits = sum(1 for w in words if w in kws)
+        prefixes = EMOTION_PREFIXES.get(emotion, ())
+        hits = sum(1 for w in words if w in kws or any(w.startswith(p) for p in prefixes))
         if hits > 0:
             emotion_scores[emotion] = round(hits / max(word_count * 0.05, 1), 3)
     if not emotion_scores:

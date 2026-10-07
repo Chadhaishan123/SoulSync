@@ -72,8 +72,33 @@ def generate_response(
 
     # ── Route by intent ──
 
+    clean_msg = msg_lower.strip().rstrip("!.?")
+
+    # Greeting
+    if clean_msg in ["hi", "hello", "hey", "hola", "sup", "good morning", "good afternoon", "good evening", "greetings"] or any(msg_lower.startswith(w) for w in ["hi ", "hello ", "hey "]):
+        reply = (
+            f"Hello! It's great to connect. Based on your recent check-in, your mood is currently at {latest.mood_score}/10. "
+            "How has your day been treating you? You can ask me to explore your patterns, check sleep insights, or suggest wellness habits."
+        )
+
+    # Affirmative / follow-up prompts
+    elif clean_msg in ["yes", "sure", "ok", "okay", "yeah", "yep", "please", "yes please", "tell me", "explore", "go ahead"]:
+        reply = (
+            f"Here are personalized recommendations based on your check-in trends (average mood: {avg_mood}/10):\n\n"
+            + _recommendation_response(entries, avg_mood, ml_trend)
+            + "\n\nWould you like to look at your sleep correlations or dive into your Digital Twin profile?"
+        )
+
+    # Negative / dismissal
+    elif clean_msg in ["no", "nope", "not now", "nah", "later"]:
+        reply = "Understood! I'm always here whenever you'd like to check in or talk. Take gentle care of yourself today."
+
+    # Gratitude / thanks
+    elif any(w in msg_lower for w in ["thank", "thx", "appreciate"]):
+        reply = "You're very welcome! Taking time for self-reflection is meaningful progress. I'm right here whenever you need me."
+
     # Mood / feelings
-    if any(w in msg_lower for w in ["mood", "feeling", "how am i", "how do i"]):
+    elif any(w in msg_lower for w in ["mood", "feeling", "how am i", "how do i"]):
         reply = _mood_response(entries, avg_mood, latest, ml_trend)
 
     # Sleep

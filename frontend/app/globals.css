@@ -39,8 +39,9 @@
   --glass-border: rgba(124, 92, 252, 0.12);
 }
 
-.light,
-:root:not(.dark) .light {
+:root.light,
+html.light,
+.light {
   --background: 220 20% 97%;
   --foreground: 240 20% 10%;
   --card: 0 0% 100%;
@@ -64,8 +65,8 @@
   --glow-primary: rgba(108, 71, 255, 0.1);
   --glow-accent: rgba(0, 184, 148, 0.08);
   --glow-warm: rgba(232, 74, 115, 0.08);
-  --glass-bg: rgba(255, 255, 255, 0.7);
-  --glass-border: rgba(0, 0, 0, 0.06);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  --glass-border: rgba(0, 0, 0, 0.08);
 }
 
 /* ──────────────────────────────────────────────

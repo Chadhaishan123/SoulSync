@@ -28,6 +28,15 @@ export default function SettingsPage() {
   const [nlpEnabled, setNlpEnabled] = useState(profile?.nlp_analysis_enabled ?? true)
   const [notifEnabled, setNotifEnabled] = useState(profile?.notifications_enabled ?? true)
 
+  React.useEffect(() => {
+    if (user?.profile) {
+      setLocationEnabled(user.profile.location_enabled ?? false)
+      setEnvEnabled(user.profile.environment_enabled ?? false)
+      setNlpEnabled(user.profile.nlp_analysis_enabled ?? true)
+      setNotifEnabled(user.profile.notifications_enabled ?? true)
+    }
+  }, [user])
+
   const handleConsentUpdate = async (field: string, value: boolean) => {
     const map: Record<string, (v: boolean) => void> = {
       location_enabled: setLocationEnabled,
