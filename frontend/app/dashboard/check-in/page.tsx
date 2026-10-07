@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { Smile, Send, Clock, CheckCircle2, Lock, ArrowRight, BookOpen, LineChart } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
 import { api } from "@/lib/api"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
@@ -19,6 +20,7 @@ const emotions = Object.keys(EMOTION_EMOJIS) as string[]
 
 export default function CheckInPage() {
   const router = useRouter()
+  const { user } = useAuth()
   const [mood, setMood] = useState<number | null>(null)
   const [stress, setStress] = useState(5)
   const [energy, setEnergy] = useState(5)
@@ -36,25 +38,65 @@ export default function CheckInPage() {
 
   useEffect(() => {
     checkLatestCheckin()
-  }, [])
+  }, [user])
 
   const checkLatestCheckin = async () => {
+    const cleanEmail = user?.email?.trim().toLowerCase()
+    let localCandidate: any = null
+    if (cleanEmail) {
+      try {
+        const raw = localStorage.getItem(`soulsync_last_checkin_${cleanEmail}`)
+        if (raw) localCandidate = JSON.parse(raw)
+      } catch {}
+    }
+
     try {
       const list = await api.checkins.list({ limit: "1" })
+      let candidate: any = null
       if (list && list.length > 0) {
-        const latest = list[0]
-        const recordedTime = new Date(latest.recorded_at).getTime()
+        candidate = list[0]
+      }
+
+      // Check if localCandidate is newer or if remote was empty
+      if (localCandidate) {
+        if (!candidate || new Date(localCandidate.recorded_at).getTime() >= new Date(candidate.recorded_at).getTime()) {
+          candidate = localCandidate
+          // Resync to backend if backend was empty
+          if (!list || list.length === 0) {
+            api.checkins.create({
+              mood_score: candidate.mood_score,
+              stress_level: candidate.stress_level,
+              energy_level: candidate.energy_level,
+              sleep_quality: candidate.sleep_quality ?? 5,
+              primary_emotion: candidate.primary_emotion,
+              context_tags: candidate.context_tags || [],
+              notes: candidate.notes || candidate.note,
+            }).catch(() => {})
+          }
+        }
+      }
+
+      if (candidate) {
+        const recordedTime = new Date(candidate.recorded_at).getTime()
         const now = Date.now()
         const twentyFourHours = 24 * 60 * 60 * 1000
         const diff = now - recordedTime
 
         if (diff < twentyFourHours) {
-          setLastEntry(latest)
+          setLastEntry(candidate)
           setIsLocked(true)
         }
       }
     } catch (err) {
-      console.warn("Could not check prior check-in:", err)
+      console.warn("Could not check prior check-in remotely:", err)
+      if (localCandidate) {
+        const recordedTime = new Date(localCandidate.recorded_at).getTime()
+        const diff = Date.now() - recordedTime
+        if (diff < 24 * 60 * 60 * 1000) {
+          setLastEntry(localCandidate)
+          setIsLocked(true)
+        }
+      }
     } finally {
       setCheckingExisting(false)
     }
@@ -101,6 +143,33 @@ export default function CheckInPage() {
       return
     }
     setLoading(true)
+
+    const cleanEmail = user?.email?.trim().toLowerCase()
+    const nowIso = new Date().toISOString()
+    const checkinRecord: MoodEntry = {
+      id: Date.now(),
+      user_id: user?.id || 1,
+      mood_score: mood,
+      stress_level: stress,
+      energy_level: energy,
+      sleep_quality: sleepQuality,
+      primary_emotion: emotion,
+      context_tags: tags,
+      notes: notes || null,
+      recorded_at: nowIso,
+      local_date: nowIso.split("T")[0],
+    }
+
+    if (cleanEmail) {
+      try {
+        localStorage.setItem(`soulsync_last_checkin_${cleanEmail}`, JSON.stringify(checkinRecord))
+        const rawList = localStorage.getItem(`soulsync_checkins_${cleanEmail}`)
+        const list = rawList ? JSON.parse(rawList) : []
+        list.unshift(checkinRecord)
+        localStorage.setItem(`soulsync_checkins_${cleanEmail}`, JSON.stringify(list.slice(0, 100)))
+      } catch {}
+    }
+
     try {
       await api.checkins.create({
         mood_score: mood,
@@ -114,7 +183,9 @@ export default function CheckInPage() {
       toast.success("Check-in recorded! 🎉")
       router.push("/dashboard")
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Failed to save check-in")
+      console.warn("API checkin error, saved locally:", err)
+      toast.success("Check-in recorded! 🎉")
+      router.push("/dashboard")
     } finally {
       setLoading(false)
     }

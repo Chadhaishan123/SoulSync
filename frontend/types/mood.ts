@@ -22,16 +22,19 @@ export interface CheckinPayload {
   notes?: string
 }
 
+export interface LatestMetrics {
+  mood: number
+  stress: number
+  energy: number
+  sleep_quality: number
+  primary_emotion: string
+  recorded_at?: string
+}
+
 export interface DashboardWeather {
   state: string
   forecast: string
-  latest_metrics?: {
-    mood: number
-    stress: number
-    energy: number
-    sleep_quality: number
-    primary_emotion: string
-  }
+  latest_metrics?: LatestMetrics
 }
 
 export interface DashboardTwin {

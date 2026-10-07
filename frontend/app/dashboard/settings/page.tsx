@@ -54,25 +54,55 @@ export default function SettingsPage() {
   const [nlpEnabled, setNlpEnabled] = useState(profile?.nlp_analysis_enabled ?? true)
   const [notifEnabled, setNotifEnabled] = useState(profile?.notifications_enabled ?? true)
 
-  useEffect(() => {
-    if (user) {
-      setName(user.name || "")
-      if (user.profile) {
-        setTimezone(user.profile.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || "")
-        setSleepGoalHours(
-          user.profile.sleep_goal_minutes ? (user.profile.sleep_goal_minutes / 60).toString() : "8"
-        )
-        setReminderHour(
-          user.profile.reminder_hour !== undefined && user.profile.reminder_hour !== null
-            ? user.profile.reminder_hour.toString()
-            : "20"
-        )
-        setLocationEnabled(user.profile.location_enabled ?? false)
-        setEnvEnabled(user.profile.environment_enabled ?? false)
-        setNlpEnabled(user.profile.nlp_analysis_enabled ?? true)
-        setNotifEnabled(user.profile.notifications_enabled ?? true)
+  const saveLocalProfileBackup = (overrides: Record<string, any> = {}) => {
+    if (!user?.email) return
+    const cleanEmail = user.email.trim().toLowerCase()
+    try {
+      const existingRaw = localStorage.getItem(`soulsync_profile_${cleanEmail}`)
+      const existing = existingRaw ? JSON.parse(existingRaw) : {}
+      const updated = {
+        ...existing,
+        name: name.trim() || user.name,
+        timezone: (timezone.trim() === "Asia/Calcutta" ? "Asia/Kolkata" : timezone.trim()) || user.profile?.timezone || "UTC",
+        sleep_goal_minutes: Math.round(parseFloat(sleepGoalHours || "8") * 60),
+        reminder_hour: parseInt(reminderHour, 10),
+        location_enabled: locationEnabled,
+        environment_enabled: envEnabled,
+        nlp_analysis_enabled: nlpEnabled,
+        notifications_enabled: notifEnabled,
+        ...overrides,
       }
+      localStorage.setItem(`soulsync_profile_${cleanEmail}`, JSON.stringify(updated))
+    } catch {}
+  }
+
+  useEffect(() => {
+    if (!user) return
+    const cleanEmail = user.email?.trim().toLowerCase()
+    let localData: any = null
+    if (cleanEmail) {
+      try {
+        const raw = localStorage.getItem(`soulsync_profile_${cleanEmail}`)
+        if (raw) localData = JSON.parse(raw)
+      } catch {}
     }
+
+    const currentName = user.name || localData?.name || ""
+    let currentTz = user.profile?.timezone || localData?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone || ""
+    if (currentTz === "Asia/Calcutta") currentTz = "Asia/Kolkata"
+
+    const currentSleepMin = user.profile?.sleep_goal_minutes ?? localData?.sleep_goal_minutes ?? 480
+    const currentRem = user.profile?.reminder_hour ?? localData?.reminder_hour ?? 20
+
+    setName(currentName)
+    setTimezone(currentTz)
+    setSleepGoalHours((currentSleepMin / 60).toString())
+    setReminderHour(currentRem.toString())
+
+    setLocationEnabled(user.profile?.location_enabled ?? localData?.location_enabled ?? false)
+    setEnvEnabled(user.profile?.environment_enabled ?? localData?.environment_enabled ?? false)
+    setNlpEnabled(user.profile?.nlp_analysis_enabled ?? localData?.nlp_analysis_enabled ?? true)
+    setNotifEnabled(user.profile?.notifications_enabled ?? localData?.notifications_enabled ?? true)
   }, [user])
 
   // Save editable profile details
@@ -96,10 +126,18 @@ export default function SettingsPage() {
     }
 
     setProfileSaving(true)
+    const normTz = timezone.trim() === "Asia/Calcutta" ? "Asia/Kolkata" : timezone.trim()
+    saveLocalProfileBackup({
+      name: name.trim(),
+      timezone: normTz || "UTC",
+      sleep_goal_minutes: sleepMin,
+      reminder_hour: remHour,
+    })
+
     try {
       await api.user.updateProfile({
         name: name.trim(),
-        timezone: timezone.trim() || undefined,
+        timezone: normTz || undefined,
         sleep_goal_minutes: sleepMin,
         reminder_hour: remHour,
       })
@@ -129,6 +167,7 @@ export default function SettingsPage() {
       // Disabling
       setLocationEnabled(false)
       setEnvEnabled(false)
+      saveLocalProfileBackup({ location_enabled: false, environment_enabled: false })
       api.user
         .updateConsents({ location_enabled: false, environment_enabled: false })
         .then(() => {
@@ -150,10 +189,11 @@ export default function SettingsPage() {
       async (pos) => {
         toast.dismiss("loc-prompt")
         try {
-          const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+          const tz = (timezone.trim() === "Asia/Calcutta" ? "Asia/Kolkata" : timezone.trim()) || Intl.DateTimeFormat().resolvedOptions().timeZone
           await api.user.updateConsents({ location_enabled: true })
           await api.user.updateLocation(pos.coords.latitude, pos.coords.longitude, tz)
           setLocationEnabled(true)
+          saveLocalProfileBackup({ location_enabled: true, timezone: tz })
           toast.success("System location permission granted & updated! 📍")
           refreshUser()
         } catch {
@@ -164,6 +204,7 @@ export default function SettingsPage() {
         toast.dismiss("loc-prompt")
         toast.error(`System location permission denied: ${err.message}`)
         setLocationEnabled(false)
+        saveLocalProfileBackup({ location_enabled: false })
       },
       { enableHighAccuracy: true, timeout: 10000 }
     )
@@ -173,6 +214,7 @@ export default function SettingsPage() {
   const handleNotificationToggle = async (turnOn: boolean) => {
     if (!turnOn) {
       setNotifEnabled(false)
+      saveLocalProfileBackup({ notifications_enabled: false })
       api.user
         .updateConsents({ notifications_enabled: false })
         .then(() => {
@@ -193,11 +235,13 @@ export default function SettingsPage() {
       if (permission === "granted") {
         await api.user.updateConsents({ notifications_enabled: true })
         setNotifEnabled(true)
+        saveLocalProfileBackup({ notifications_enabled: true })
         toast.success("System notifications granted! 🔔")
         refreshUser()
       } else {
         toast.error(`Notification permission was ${permission}`)
         setNotifEnabled(false)
+        saveLocalProfileBackup({ notifications_enabled: false })
       }
     } catch {
       toast.error("Failed to request notification permission")
@@ -212,6 +256,7 @@ export default function SettingsPage() {
 
     const setter = field === "environment_enabled" ? setEnvEnabled : setNlpEnabled
     setter(value)
+    saveLocalProfileBackup({ [field]: value })
 
     try {
       await api.user.updateConsents({ [field]: value })
@@ -219,6 +264,7 @@ export default function SettingsPage() {
       refreshUser()
     } catch (err: unknown) {
       setter(!value)
+      saveLocalProfileBackup({ [field]: !value })
       toast.error(err instanceof Error ? err.message : "Failed to update consent")
     }
   }

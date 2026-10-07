@@ -86,6 +86,10 @@ def send_message(
         ).all()
     )
 
+    ml_trend = predict_trend(entries) if entries else None
+    ml_anomaly = detect_anomalies(entries) if entries else None
+    ml_cluster = cluster_user(entries) if entries else None
+
     # Fetch recent messages in this session for conversational context
     recent_history = list(
         db.scalars(

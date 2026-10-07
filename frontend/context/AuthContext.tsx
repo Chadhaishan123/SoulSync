@@ -29,6 +29,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return
       }
       const me = await api.user.getMe()
+      const cleanEmail = me.email?.toLowerCase().trim()
+      if (cleanEmail) {
+        try {
+          const raw = localStorage.getItem(`soulsync_profile_${cleanEmail}`)
+          if (raw) {
+            const saved = JSON.parse(raw)
+            if (saved.name) me.name = saved.name
+            if (saved.timezone && (!me.profile.timezone || me.profile.timezone === "UTC")) {
+              me.profile.timezone = saved.timezone
+            }
+            if (saved.sleep_goal_minutes !== undefined && saved.sleep_goal_minutes !== null) {
+              me.profile.sleep_goal_minutes = saved.sleep_goal_minutes
+            }
+            if (saved.reminder_hour !== undefined && saved.reminder_hour !== null) {
+              me.profile.reminder_hour = saved.reminder_hour
+            }
+            if (saved.location_enabled !== undefined) me.profile.location_enabled = saved.location_enabled
+            if (saved.environment_enabled !== undefined) me.profile.environment_enabled = saved.environment_enabled
+            if (saved.nlp_analysis_enabled !== undefined) me.profile.nlp_analysis_enabled = saved.nlp_analysis_enabled
+            if (saved.notifications_enabled !== undefined) me.profile.notifications_enabled = saved.notifications_enabled
+          }
+        } catch {}
+      }
       setUser(me)
     } catch {
       clearTokens()
@@ -48,6 +71,67 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await api.auth.login(cleanEmail, password)
       setTokens(data.tokens.access_token, data.tokens.refresh_token)
       const me = await api.user.getMe()
+
+      // Read local cached profile to prevent resetting customized settings
+      let savedProfile: any = null
+      try {
+        const raw = localStorage.getItem(`soulsync_profile_${cleanEmail}`)
+        if (raw) savedProfile = JSON.parse(raw)
+      } catch {}
+
+      if (savedProfile) {
+        if (savedProfile.name) me.name = savedProfile.name
+        if (savedProfile.timezone) me.profile.timezone = savedProfile.timezone
+        if (savedProfile.sleep_goal_minutes !== undefined) me.profile.sleep_goal_minutes = savedProfile.sleep_goal_minutes
+        if (savedProfile.reminder_hour !== undefined) me.profile.reminder_hour = savedProfile.reminder_hour
+        if (savedProfile.location_enabled !== undefined) me.profile.location_enabled = savedProfile.location_enabled
+        if (savedProfile.environment_enabled !== undefined) me.profile.environment_enabled = savedProfile.environment_enabled
+        if (savedProfile.nlp_analysis_enabled !== undefined) me.profile.nlp_analysis_enabled = savedProfile.nlp_analysis_enabled
+        if (savedProfile.notifications_enabled !== undefined) me.profile.notifications_enabled = savedProfile.notifications_enabled
+
+        // Resync customizations to backend in background if backend profile had blank defaults
+        api.user.updateProfile({
+          name: savedProfile.name || me.name,
+          timezone: savedProfile.timezone || me.profile.timezone,
+          sleep_goal_minutes: savedProfile.sleep_goal_minutes ?? me.profile.sleep_goal_minutes ?? 480,
+          reminder_hour: savedProfile.reminder_hour ?? me.profile.reminder_hour ?? 20,
+        }).catch(() => {})
+      } else {
+        // Cache initial profile for this user
+        try {
+          localStorage.setItem(`soulsync_profile_${cleanEmail}`, JSON.stringify({
+            name: me.name,
+            timezone: me.profile.timezone,
+            sleep_goal_minutes: me.profile.sleep_goal_minutes,
+            reminder_hour: me.profile.reminder_hour,
+            location_enabled: me.profile.location_enabled,
+            environment_enabled: me.profile.environment_enabled,
+            nlp_analysis_enabled: me.profile.nlp_analysis_enabled,
+            notifications_enabled: me.profile.notifications_enabled,
+          }))
+        } catch {}
+      }
+
+      // Check if user has a recent check-in saved locally to sync back to backend if backend was restarted
+      try {
+        const rawCheckin = localStorage.getItem(`soulsync_last_checkin_${cleanEmail}`)
+        if (rawCheckin) {
+          const checkin = JSON.parse(rawCheckin)
+          const diff = Date.now() - new Date(checkin.recorded_at).getTime()
+          if (diff < 24 * 60 * 60 * 1000) {
+            api.checkins.create({
+              mood_score: checkin.mood_score,
+              stress_level: checkin.stress_level,
+              energy_level: checkin.energy_level,
+              sleep_quality: checkin.sleep_quality,
+              primary_emotion: checkin.primary_emotion,
+              context_tags: checkin.context_tags || [],
+              notes: checkin.notes || checkin.note,
+            }).catch(() => {})
+          }
+        }
+      } catch {}
+
       setUser(me)
       try {
         localStorage.setItem("soulsync_last_user", JSON.stringify({ name: me.name, email: cleanEmail }))
@@ -59,7 +143,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (isAuthErr) {
         try {
           let savedName = cleanEmail.split("@")[0].charAt(0).toUpperCase() + cleanEmail.split("@")[0].slice(1)
+          let savedProfile: any = null
           try {
+            const rawProf = localStorage.getItem(`soulsync_profile_${cleanEmail}`)
+            if (rawProf) {
+              savedProfile = JSON.parse(rawProf)
+              if (savedProfile.name) savedName = savedProfile.name
+            }
             const raw = localStorage.getItem("soulsync_last_user")
             if (raw) {
               const parsed = JSON.parse(raw)
@@ -72,6 +162,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const regData = await api.auth.register(savedName, cleanEmail, password)
           setTokens(regData.tokens.access_token, regData.tokens.refresh_token)
           const me = await api.user.getMe()
+
+          if (savedProfile) {
+            if (savedProfile.name) me.name = savedProfile.name
+            if (savedProfile.timezone) me.profile.timezone = savedProfile.timezone
+            if (savedProfile.sleep_goal_minutes !== undefined) me.profile.sleep_goal_minutes = savedProfile.sleep_goal_minutes
+            if (savedProfile.reminder_hour !== undefined) me.profile.reminder_hour = savedProfile.reminder_hour
+
+            // Restore in backend
+            await api.user.updateProfile({
+              name: savedProfile.name || me.name,
+              timezone: savedProfile.timezone || me.profile.timezone,
+              sleep_goal_minutes: savedProfile.sleep_goal_minutes ?? 480,
+              reminder_hour: savedProfile.reminder_hour ?? 20,
+            }).catch(() => {})
+          }
+
+          // Restore checkin
+          try {
+            const rawCheckin = localStorage.getItem(`soulsync_last_checkin_${cleanEmail}`)
+            if (rawCheckin) {
+              const checkin = JSON.parse(rawCheckin)
+              const diff = Date.now() - new Date(checkin.recorded_at).getTime()
+              if (diff < 24 * 60 * 60 * 1000) {
+                await api.checkins.create({
+                  mood_score: checkin.mood_score,
+                  stress_level: checkin.stress_level,
+                  energy_level: checkin.energy_level,
+                  sleep_quality: checkin.sleep_quality,
+                  primary_emotion: checkin.primary_emotion,
+                  context_tags: checkin.context_tags || [],
+                  notes: checkin.notes || checkin.note,
+                }).catch(() => {})
+              }
+            }
+          } catch {}
+
           setUser(me)
           return
         } catch (regErr: any) {
@@ -91,6 +217,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setTokens(data.tokens.access_token, data.tokens.refresh_token)
     try {
       localStorage.setItem("soulsync_last_user", JSON.stringify({ name, email: cleanEmail }))
+      localStorage.setItem(`soulsync_profile_${cleanEmail}`, JSON.stringify({
+        name,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+        sleep_goal_minutes: 480,
+        reminder_hour: 20,
+        location_enabled: false,
+        environment_enabled: false,
+        nlp_analysis_enabled: true,
+        notifications_enabled: true,
+      }))
     } catch {}
     const me = await api.user.getMe()
     setUser(me)

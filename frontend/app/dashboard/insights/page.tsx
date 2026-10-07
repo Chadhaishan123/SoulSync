@@ -10,9 +10,11 @@ import AnomalyAlert from "@/components/features/AnomalyAlert"
 import TrendBanner from "@/components/features/TrendBanner"
 import ClusterBadge from "@/components/features/ClusterBadge"
 import MoodTrendChart from "@/components/charts/MoodTrendChart"
+import { useAuth } from "@/context/AuthContext"
 import type { DashboardData, MoodEntry } from "@/types/mood"
 
 export default function InsightsPage() {
+  const { user } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [checkins, setCheckins] = useState<MoodEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,7 +27,26 @@ export default function InsightsPage() {
           api.checkins.list(),
         ])
         if (insights.status === "fulfilled") setData(insights.value)
-        if (entries.status === "fulfilled") setCheckins(entries.value)
+        if (entries.status === "fulfilled" && entries.value.length > 0) {
+          setCheckins(entries.value)
+        } else if (user?.email) {
+          const cleanEmail = user.email.trim().toLowerCase()
+          try {
+            const raw = localStorage.getItem(`soulsync_checkins_${cleanEmail}`)
+            if (raw) {
+              const parsed = JSON.parse(raw)
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setCheckins(parsed)
+              }
+            } else {
+              const single = localStorage.getItem(`soulsync_last_checkin_${cleanEmail}`)
+              if (single) {
+                const parsedSingle = JSON.parse(single)
+                setCheckins([parsedSingle])
+              }
+            }
+          } catch {}
+        }
       } catch {
         //
       } finally {
@@ -33,7 +54,7 @@ export default function InsightsPage() {
       }
     }
     load()
-  }, [])
+  }, [user])
 
   if (loading) {
     return (

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Smile, ArrowRight, CheckCircle2, Award, MessageSquare, BookOpen, Moon, Sparkles, HeartHandshake, CalendarCheck } from "lucide-react"
+import { Smile, ArrowRight, CheckCircle2, Award, MessageSquare, BookOpen, Moon, Sparkles, HeartHandshake, CalendarCheck, Lock } from "lucide-react"
 import { api } from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 import Card, { CardHeader, CardTitle } from "@/components/ui/Card"
@@ -18,7 +18,7 @@ import MindWeatherSimulator from "@/components/features/MindWeatherSimulator"
 import StressEnergyGauge from "@/components/charts/StressEnergyGauge"
 import { EMOTION_EMOJIS, MOOD_EMOJIS } from "@/lib/constants"
 import { formatDate } from "@/lib/formatters"
-import type { DashboardData } from "@/types/mood"
+import type { DashboardData, LatestMetrics } from "@/types/mood"
 import type { Recommendation } from "@/types/activity"
 import EnvironmentLiveWidget from "@/components/features/EnvironmentLiveWidget"
 import toast from "react-hot-toast"
@@ -33,11 +33,21 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { type: "spring" as const, stiffness: 100, damping: 15 } },
 }
 
+const getMoodWeatherFallback = (score: number) => {
+  if (score >= 9) return { state: "☀️ Radiant Sunshine", forecast: "You're glowing today — enjoy this beautiful emotional weather!" }
+  if (score >= 7) return { state: "🌤️ Partly Sunny", forecast: "A bright outlook with good vibes on the horizon." }
+  if (score >= 5) return { state: "⛅ Mixed Skies", forecast: "Some clouds, some sun — a balanced emotional day." }
+  if (score >= 3) return { state: "🌧️ Light Rain", forecast: "A little overcast today. Be gentle with yourself." }
+  return { state: "🌩️ Stormy Weather", forecast: "Tough skies right now. Remember: every storm passes." }
+}
+
 export default function DashboardPage() {
   const { user } = useAuth()
   const [data, setData] = useState<DashboardData | null>(null)
   const [recs, setRecs] = useState<Recommendation[]>([])
   const [loading, setLoading] = useState(true)
+  const [localCheckin, setLocalCheckin] = useState<any>(null)
+  const [timeRemaining, setTimeRemaining] = useState<string>("")
 
   const fetchData = async () => {
     try {
@@ -58,6 +68,37 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
+  // Sync and hydrate local checkin backup
+  useEffect(() => {
+    if (!user?.email) return
+    const cleanEmail = user.email.trim().toLowerCase()
+    try {
+      const raw = localStorage.getItem(`soulsync_last_checkin_${cleanEmail}`)
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        setLocalCheckin(parsed)
+      }
+    } catch {}
+  }, [user])
+
+  // If backend provided fresh metrics, back them up locally
+  useEffect(() => {
+    if (!user?.email || !data?.weather?.latest_metrics) return
+    const cleanEmail = user.email.trim().toLowerCase()
+    const m = data.weather.latest_metrics
+    try {
+      const backup = {
+        mood_score: m.mood,
+        stress_level: m.stress,
+        energy_level: m.energy,
+        sleep_quality: m.sleep_quality,
+        primary_emotion: m.primary_emotion,
+        recorded_at: m.recorded_at,
+      }
+      localStorage.setItem(`soulsync_last_checkin_${cleanEmail}`, JSON.stringify(backup))
+    } catch {}
+  }, [user, data])
+
   const handleFeedback = async (recId: number) => {
     try {
       await api.recommendations.feedback(recId, "👍 Helpful")
@@ -67,6 +108,56 @@ export default function DashboardPage() {
       toast.error("Failed to record feedback")
     }
   }
+
+  // Compute effective metrics between backend and local storage
+  const remoteMetrics = data?.weather?.latest_metrics
+  let activeMetrics: LatestMetrics | null = remoteMetrics || null
+
+  if (!activeMetrics && localCheckin) {
+    const diff = Date.now() - new Date(localCheckin.recorded_at).getTime()
+    if (diff < 24 * 60 * 60 * 1000) {
+      activeMetrics = {
+        mood: localCheckin.mood_score,
+        stress: localCheckin.stress_level,
+        energy: localCheckin.energy_level,
+        sleep_quality: localCheckin.sleep_quality ?? 5,
+        primary_emotion: localCheckin.primary_emotion,
+        recorded_at: localCheckin.recorded_at,
+      }
+    }
+  }
+
+  // Calculate 24-hour lockout state
+  const isLocked = Boolean(
+    activeMetrics &&
+    Date.now() - new Date(activeMetrics.recorded_at).getTime() < 24 * 60 * 60 * 1000
+  )
+
+  useEffect(() => {
+    if (!activeMetrics || !isLocked) {
+      setTimeRemaining("")
+      return
+    }
+
+    const updateTimer = () => {
+      const recTime = new Date(activeMetrics.recorded_at).getTime()
+      const unlockTime = recTime + 24 * 60 * 60 * 1000
+      const diff = unlockTime - Date.now()
+
+      if (diff <= 0) {
+        setTimeRemaining("")
+        return
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60))
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
+      setTimeRemaining(`${hours}h ${minutes}m`)
+    }
+
+    updateTimer()
+    const timer = setInterval(updateTimer, 60000)
+    return () => clearInterval(timer)
+  }, [activeMetrics, isLocked])
 
   if (loading) {
     return (
@@ -81,9 +172,12 @@ export default function DashboardPage() {
     )
   }
 
-  const metrics = data?.weather?.latest_metrics
-  const moodEmoji = metrics?.mood ? MOOD_EMOJIS[metrics.mood]?.emoji : "—"
-  const emotionEmoji = metrics?.primary_emotion ? EMOTION_EMOJIS[metrics.primary_emotion] : ""
+  const moodEmoji = activeMetrics?.mood ? MOOD_EMOJIS[activeMetrics.mood]?.emoji : "—"
+  const emotionEmoji = activeMetrics?.primary_emotion ? EMOTION_EMOJIS[activeMetrics.primary_emotion] : ""
+
+  const fallbackWeather = activeMetrics ? getMoodWeatherFallback(activeMetrics.mood) : null
+  const displayWeatherState = data?.weather?.state || fallbackWeather?.state || "⛅ Mixed Skies"
+  const displayForecast = data?.weather?.forecast || fallbackWeather?.forecast || "Log a check-in to see your emotional forecast."
 
   return (
     <motion.div
@@ -96,7 +190,7 @@ export default function DashboardPage() {
       <motion.div variants={itemVariants} className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-card via-card to-secondary/30 p-5 rounded-2xl border border-border/60">
         <div className="flex items-center gap-4">
           <EmotionalAura
-            dominantEmotion={(metrics?.primary_emotion as any) || "Calm"}
+            dominantEmotion={(activeMetrics?.primary_emotion as any) || "Calm"}
             size="sm"
           />
           <div>
@@ -111,11 +205,23 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
-        <Link href="/dashboard/check-in">
-          <Button icon={<Smile className="w-4 h-4" />}>
-            Daily Check-In
-          </Button>
-        </Link>
+        {isLocked ? (
+          <Link href="/dashboard/check-in">
+            <Button
+              variant="secondary"
+              className="border-emerald-500/40 text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20"
+              icon={<CheckCircle2 className="w-4 h-4 text-emerald-400" />}
+            >
+              Today&apos;s Check-In Complete (24h Locked)
+            </Button>
+          </Link>
+        ) : (
+          <Link href="/dashboard/check-in">
+            <Button icon={<Smile className="w-4 h-4" />}>
+              Daily Check-In
+            </Button>
+          </Link>
+        )}
       </motion.div>
 
       {/* Real-Time Environment Tracking Widget */}
@@ -128,36 +234,53 @@ export default function DashboardPage() {
         {/* Card 1: Emotional Weather */}
         <motion.div variants={itemVariants}>
           <Card variant="interactive" className="h-full">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-              Today&apos;s Emotional Weather
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                Today&apos;s Emotional Weather
+              </span>
+              {isLocked && (
+                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                  <CheckCircle2 className="w-3 h-3" /> Recorded
+                </span>
+              )}
+            </div>
             <div className="flex items-center gap-3 mt-3">
-              <span className="text-4xl">{data?.weather?.state?.split(" ")[0]}</span>
+              <span className="text-4xl">{displayWeatherState?.split(" ")[0]}</span>
               <span className="text-lg font-bold text-foreground">
-                {data?.weather?.state?.split(" ").slice(1).join(" ")}
+                {displayWeatherState?.split(" ").slice(1).join(" ")}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mt-2 leading-relaxed italic">
-              &ldquo;{data?.weather?.forecast}&rdquo;
+              &ldquo;{displayForecast}&rdquo;
             </p>
-            {metrics ? (
-              <div className="grid grid-cols-4 gap-2 text-center border-t border-border pt-3 mt-4 text-xs">
-                <div>
-                  <p className="font-bold text-foreground">{moodEmoji} {metrics.mood}</p>
-                  <p className="text-muted-foreground">Mood</p>
+            {activeMetrics ? (
+              <div className="border-t border-border pt-3 mt-4">
+                <div className="grid grid-cols-4 gap-2 text-center text-xs">
+                  <div>
+                    <p className="font-bold text-foreground">{moodEmoji} {activeMetrics.mood}</p>
+                    <p className="text-muted-foreground">Mood</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground">{activeMetrics.stress}/10</p>
+                    <p className="text-muted-foreground">Stress</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground">{activeMetrics.energy}/10</p>
+                    <p className="text-muted-foreground">Energy</p>
+                  </div>
+                  <div>
+                    <p className="font-bold text-foreground">{emotionEmoji}</p>
+                    <p className="text-muted-foreground">{activeMetrics.primary_emotion}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-foreground">{metrics.stress}/10</p>
-                  <p className="text-muted-foreground">Stress</p>
-                </div>
-                <div>
-                  <p className="font-bold text-foreground">{metrics.energy}/10</p>
-                  <p className="text-muted-foreground">Energy</p>
-                </div>
-                <div>
-                  <p className="font-bold text-foreground">{emotionEmoji}</p>
-                  <p className="text-muted-foreground">{metrics.primary_emotion}</p>
-                </div>
+                {isLocked && (
+                  <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+                    <span className="text-emerald-400 font-medium">✓ Check-in active</span>
+                    <span className="inline-flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Unlocks in {timeRemaining || "24h"}
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <p className="text-xs text-muted-foreground border-t border-border pt-3 mt-4">
@@ -179,9 +302,9 @@ export default function DashboardPage() {
                 <TrendBanner trend={data.trend_prediction} />
               </div>
             )}
-            {metrics && (
+            {activeMetrics && (
               <div className="mt-4">
-                <StressEnergyGauge stress={metrics.stress} energy={metrics.energy} />
+                <StressEnergyGauge stress={activeMetrics.stress} energy={activeMetrics.energy} />
               </div>
             )}
             <Link
