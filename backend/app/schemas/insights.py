@@ -103,8 +103,14 @@ class SimulationResponse(BaseModel):
     recommendations: List[str]
 
 
+class ChatHistoryItem(BaseModel):
+    role: str
+    content: str
+
+
 class TwinChatRequest(BaseModel):
     message: str
+    history: Optional[List[ChatHistoryItem]] = None
 
 
 class TwinChatResponse(BaseModel):
@@ -112,4 +118,5 @@ class TwinChatResponse(BaseModel):
     insights_found: List[str] = []
     dominant_pattern: str = "Balanced"
     confidence: float = 0.85
+    detected_emotion: Optional[str] = None
 

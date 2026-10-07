@@ -22,19 +22,37 @@ CONSENT_TYPES = (
 )
 
 
+TIMEZONE_ALIASES = {
+    "Asia/Calcutta": "Asia/Kolkata",
+    "Asia/Saigon": "Asia/Ho_Chi_Minh",
+    "Asia/Katmandu": "Asia/Kathmandu",
+    "Asia/Rangoon": "Asia/Yangon",
+    "Asia/Ulan_Bator": "Asia/Ulaanbaatar",
+    "Asia/Thimbu": "Asia/Thimphu",
+    "America/Buenos_Aires": "America/Argentina/Buenos_Aires",
+    "UTC": "UTC",
+    "GMT": "UTC",
+}
+
+
 def validate_timezone(value: str) -> str:
     """
-    Reject unknown IANA names.
-
-    This is not pedantry: local_date on every check-in is derived from this
-    string. A bad value would silently shift the user's day boundary and
-    corrupt their streaks and daily aggregates.
+    Validate and normalize IANA timezone names (e.g. Asia/Calcutta -> Asia/Kolkata).
     """
-    if value not in _VALID_TIMEZONES:
-        raise ValueError(
-            f"Unknown timezone {value!r}. Expected an IANA name like 'Asia/Kolkata'."
-        )
-    return value
+    v = value.strip()
+    if v in TIMEZONE_ALIASES:
+        v = TIMEZONE_ALIASES[v]
+    if v in _VALID_TIMEZONES:
+        return v
+    try:
+        from zoneinfo import ZoneInfo
+        ZoneInfo(v)
+        return v
+    except Exception:
+        pass
+    raise ValueError(
+        f"Unknown timezone {value!r}. Expected an IANA name like 'Asia/Kolkata'."
+    )
 
 
 class ProfileUpdate(BaseModel):

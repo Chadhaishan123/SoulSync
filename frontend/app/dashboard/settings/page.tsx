@@ -113,7 +113,10 @@ export default function SettingsPage() {
   }
 
   const detectSystemTimezone = () => {
-    const sysTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    let sysTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (sysTz === "Asia/Calcutta") {
+      sysTz = "Asia/Kolkata"
+    }
     if (sysTz) {
       setTimezone(sysTz)
       toast.success(`Detected system timezone: ${sysTz}`)

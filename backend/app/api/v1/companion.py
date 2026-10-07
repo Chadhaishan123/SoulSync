@@ -86,10 +86,16 @@ def send_message(
         ).all()
     )
 
-    # Get ML insights for grounding
-    ml_trend = predict_trend(entries) if entries else None
-    ml_cluster = cluster_user(entries) if entries else None
-    ml_anomaly = detect_anomalies(entries) if entries else None
+    # Fetch recent messages in this session for conversational context
+    recent_history = list(
+        db.scalars(
+            select(ConversationMessage)
+            .where(ConversationMessage.session_id == session.id)
+            .order_by(ConversationMessage.created_at.desc())
+            .limit(10)
+        ).all()
+    )
+    recent_history.reverse()
 
     # Generate response
     result = generate_response(
@@ -98,6 +104,7 @@ def send_message(
         ml_trend=ml_trend,
         ml_cluster=ml_cluster,
         ml_anomaly=ml_anomaly,
+        conversation_history=recent_history,
     )
 
     # Save assistant reply

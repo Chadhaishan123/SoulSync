@@ -163,6 +163,10 @@ export default function AppointmentsPage() {
       toast.error("Please describe your problem or concern to proceed with booking.")
       return
     }
+    if (!shareTwin) {
+      toast.error("Authorizing Pre-session Clinical Summary is compulsory to proceed with booking.")
+      return
+    }
     if (!selectedDate) {
       toast.error("Please pick a consultation date")
       return
@@ -491,20 +495,30 @@ export default function AppointmentsPage() {
               )}
             </div>
 
-            {/* Share Digital Twin Data Consent */}
-            <div className="p-3 rounded-xl bg-secondary/40 border border-border flex items-start gap-2.5">
-              <input
-                type="checkbox"
-                id="shareTwin"
-                checked={shareTwin}
-                onChange={(e) => setShareTwin(e.target.checked)}
-                className="mt-0.5 rounded border-border text-soul-purple focus:ring-soul-purple"
-              />
-              <label htmlFor="shareTwin" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
-                <strong className="text-foreground">Pre-session Clinical Summary:</strong> Authorize sharing your
-                SoulSync Digital Twin longitudinal pattern summary and recent check-in stats with {selectedDoctor.name} to
-                help them prepare for your session.
-              </label>
+            {/* Share Digital Twin Data Consent (Compulsory) */}
+            <div className={`p-3 rounded-xl border transition-all ${
+              !shareTwin ? "bg-amber-500/10 border-amber-500/40" : "bg-secondary/40 border-border"
+            }`}>
+              <div className="flex items-start gap-2.5">
+                <input
+                  type="checkbox"
+                  id="shareTwin"
+                  checked={shareTwin}
+                  onChange={(e) => setShareTwin(e.target.checked)}
+                  required
+                  className="mt-0.5 rounded border-border text-soul-purple focus:ring-soul-purple"
+                />
+                <label htmlFor="shareTwin" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                  <strong className="text-foreground">Pre-session Clinical Summary (Compulsory) <span className="text-red-400">*</span>:</strong> Authorize
+                  sharing your SoulSync Digital Twin longitudinal pattern summary and recent check-in stats with {selectedDoctor.name} to
+                  enable pre-consultation clinical preparation.
+                </label>
+              </div>
+              {!shareTwin && (
+                <p className="text-[11px] text-amber-400 font-medium mt-1.5 ml-6">
+                  ⚠️ Pre-session clinical summary authorization is compulsory to confirm this booking.
+                </p>
+              )}
             </div>
 
             {/* Actions */}
@@ -515,7 +529,7 @@ export default function AppointmentsPage() {
               <Button
                 variant="primary"
                 onClick={confirmBooking}
-                disabled={!reason.trim() || bookingLoading}
+                disabled={!reason.trim() || !shareTwin || bookingLoading}
                 isLoading={bookingLoading}
                 className="flex-1 bg-soul-purple hover:bg-soul-purple/90 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 icon={<CheckCircle2 className="w-4 h-4" />}

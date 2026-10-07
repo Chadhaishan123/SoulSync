@@ -33,112 +33,132 @@ const SUGGESTED_PROMPTS = [
 
 function getDynamicTwinReply(
   query: string,
+  history: { role: string; content: string }[],
   currentPattern: string,
   totalDays: number
 ): { reply: string; insights: string[] } {
   const q = query.toLowerCase().trim()
+  const historyText = history.slice(-4).map((h) => h.content.toLowerCase()).join(" ")
+  const fullContext = `${historyText} ${q}`.trim()
 
-  if (
-    q.includes("sleep") ||
-    q.includes("tired") ||
-    q.includes("bed") ||
-    q.includes("insomnia") ||
-    q.includes("wake")
-  ) {
+  // 1. Detect ongoing topic
+  let topic = "general"
+  if (fullContext.includes("sleep") || fullContext.includes("bed") || fullContext.includes("night") || fullContext.includes("insomnia") || fullContext.includes("circadian")) {
+    topic = "sleep"
+  } else if (fullContext.includes("stress") || fullContext.includes("anxious") || fullContext.includes("panic") || fullContext.includes("overwhelm") || fullContext.includes("spiral")) {
+    topic = "stress"
+  } else if (fullContext.includes("work") || fullContext.includes("job") || fullContext.includes("study") || fullContext.includes("exam") || fullContext.includes("burnout") || fullContext.includes("boss")) {
+    topic = "work"
+  } else if (fullContext.includes("relationship") || fullContext.includes("partner") || fullContext.includes("friend") || fullContext.includes("fight") || fullContext.includes("lonely") || fullContext.includes("breakup")) {
+    topic = "relationships"
+  } else if (fullContext.includes("sad") || fullContext.includes("depress") || fullContext.includes("crying") || fullContext.includes("hopeless") || fullContext.includes("empty")) {
+    topic = "sadness"
+  }
+
+  // 2. Detect emotion
+  let emotion = "Reflective"
+  if (q.includes("frustrat") || q.includes("annoy") || q.includes("didn't work") || q.includes("did not work") || q.includes("impossible") || q.includes("useless") || q.includes("can't") || q.includes("cant")) {
+    emotion = "Frustrated / Blocked"
+  } else if (q.includes("exhaust") || q.includes("drained") || q.includes("so tired") || q.includes("too much") || q.includes("no energy")) {
+    emotion = "Exhausted / Burnout"
+  } else if (q.includes("scared") || q.includes("fear") || q.includes("anxious") || q.includes("panic") || q.includes("shaking")) {
+    emotion = "High Anxiety"
+  } else if (q.includes("hopeless") || q.includes("worthless") || q.includes("alone") || q.includes("nobody") || q.includes("crying")) {
+    emotion = "Sadness / Vulnerable"
+  } else if (q.includes("why") || q.includes("how") || q.includes("what if") || q.includes("tell me more") || q.includes("explain")) {
+    emotion = "Curious / Inquiring"
+  } else if (q === "yes" || q === "ok" || q === "okay" || q === "sure" || q.includes("makes sense") || q.includes("will try")) {
+    emotion = "Receptive"
+  }
+
+  const insights = [`Archetype: ${currentPattern}`, `Detected Tone: ${emotion}`]
+
+  // Contextual Multi-Turn Responses:
+  if (emotion === "Frustrated / Blocked") {
+    if (topic === "sleep") {
+      return {
+        reply: `I completely get why standard sleep tips feel frustrating when you're dealing with real-world constraints. In our '${currentPattern}' profile, forcing sleep triggers performance anxiety. Instead, focus strictly on somatic resting: lying down in absolute darkness without watching the clock. Even quiet rest provides 70% of brain restoration. What part of your schedule makes regular sleep hardest?`,
+        insights: [...insights, "Somatic Rest > Forcing Sleep"],
+      }
+    }
+    if (topic === "work") {
+      return {
+        reply: `Your frustration makes total sense. When demands pile up and energy is low, our twin vectors indicate heavy cognitive overload. You don't have to power through everything. Can you pick just ONE non-essential task and drop it today to protect your recovery?`,
+        insights: [...insights, "Boundary Setting Required"],
+      }
+    }
     return {
-      reply: `Checking our sleep records in the '${currentPattern}' profile: when our sleep duration exceeds 7.5 hours, our next-day mood index improves by +1.4 points. Conversely, sub-6-hour nights correlate with elevated morning tension and cortisol spikes. Protecting our circadian wind-down between 11 PM and 7 AM remains our highest-ROI habit.`,
-      insights: [
-        `Pattern: ${currentPattern}`,
-        "Sleep > 7.5h -> +1.4 Mood boost",
-        "Circadian window: 11 PM - 7 AM",
-      ],
+      reply: `I hear your frustration, and I don't want to dismiss what you're dealing with. When we hit a wall, feeling annoyed is our system's natural reaction. What feels like the biggest obstacle right now?`,
+      insights,
     }
   }
-  if (
-    q.includes("stress") ||
-    q.includes("anxious") ||
-    q.includes("anxiety") ||
-    q.includes("overwhelm") ||
-    q.includes("panic")
-  ) {
+
+  if (emotion === "Curious / Inquiring" && history.length >= 2) {
+    if (topic === "sleep") {
+      return {
+        reply: `To explain what's happening neurologically: our circadian rhythm uses core temperature drops and melatonin release to synchronize deep slow-wave sleep. When that rhythm is delayed by blue light or late caffeine, sleep efficiency drops by ~20% even if total time in bed stays the same. Would you like to check how tonight's sleep duration could impact tomorrow's energy?`,
+        insights: [...insights, "Circadian Neuromapping"],
+      }
+    }
+    if (topic === "stress") {
+      return {
+        reply: `The reason our stress spikes persist is biological: cortisol and adrenaline have a half-life in the bloodstream. If we don't discharge that energy with physical movement or deep breathing, our brain keeps looking for threats. Even 5 minutes of brisk walking completes that cycle for our '${currentPattern}' profile.`,
+        insights: [...insights, "Stress Cycle Discharge"],
+      }
+    }
     return {
-      reply: `Across our ${totalDays} check-in vectors, stress spikes are heavily amplified by continuous cognitive load. Our behavioral twin demonstrates that stepping away for a 10-minute walk or doing 3 cycles of 4-7-8 breathing drops our acute nervous system tension by over 25%. What is the source of the stress right now?`,
-      insights: [
-        "Somatic trigger identified",
-        "10-min movement -> 25% tension drop",
-      ],
+      reply: `Looking deeper into our behavioral vectors: our '${currentPattern}' archetype is particularly sensitive to routine transitions. The more predictable your morning and evening anchors are, the more your nervous system feels secure. What specific aspect would you like to explore?`,
+      insights,
     }
   }
-  if (
-    q.includes("happy") ||
-    q.includes("boost") ||
-    q.includes("best") ||
-    q.includes("mood") ||
-    q.includes("good")
-  ) {
+
+  if (emotion === "Exhausted / Burnout") {
     return {
-      reply: `Our peak emotional vectors cluster around mornings where we get early outdoor daylight and complete a short reflection. For our '${currentPattern}' archetype, doing even 15 minutes of physical movement consistently shifts our day into an upward trajectory. Would you like to set a micro-goal for today?`,
-      insights: [
-        `Archetype: ${currentPattern}`,
-        "Key catalyst: Morning daylight + Movement",
-      ],
+      reply: `I hear how depleted you are right now. In our '${currentPattern}' pattern, intense exhaustion is your nervous system screaming for true recovery. Trying to solve complex problems right now will only frustrate you. Give yourself full permission to do the bare minimum today: hydrate, step away from screens, and rest. What is one pressure you can take off your shoulders right now?`,
+      insights: [...insights, "Parasympathetic Recovery Mode"],
     }
   }
-  if (
-    q.includes("who are you") ||
-    q.includes("what are you") ||
-    q.includes("twin") ||
-    q.includes("cluster") ||
-    q.includes("archetype")
-  ) {
+
+  if (topic === "sleep") {
     return {
-      reply: `I am your SoulSync Digital Twin! Synthesized from your ${totalDays} daily check-ins and sleep records, I reflect your behavioral rhythms using K-Means clustering. Our active archetype is '${currentPattern}'. As we log more entries, my predictions of your mood and burnout risk become increasingly razor-sharp.`,
-      insights: [
-        `Active cluster: ${currentPattern}`,
-        `Total records: ${totalDays}`,
-        "Grounding: K-Means Vector Space",
-      ],
+      reply: `Checking our sleep vectors for the '${currentPattern}' archetype: our next-day emotional stability increases by +1.4 points when sleep duration exceeds 7.5 hours. Conversely, sub-6-hour nights directly correlate with elevated morning tension and cortisol spikes. Protecting our circadian wind-down between 11 PM and 7 AM remains our highest-ROI habit.`,
+      insights: [...insights, "Sleep > 7.5h -> +1.4 Mood boost"],
     }
   }
-  if (q.includes("hi") || q.includes("hello") || q.includes("hey")) {
+
+  if (topic === "stress") {
     return {
-      reply: `Hello! I'm synced and ready. As your twin in the '${currentPattern}' state, I'm watching over our rest and energy rhythms today. How are you feeling in your mind and body right now?`,
-      insights: [`Profile: ${currentPattern}`, "Rhythm: Synced"],
+      reply: `Across our ${totalDays} check-in vectors, stress spikes cluster around continuous uninterrupted screen work. Our behavioral twin demonstrates that stepping away for a 10-minute walk or doing 3 cycles of 4-7-8 breathing drops acute tension by over 25%. What is the main source of the tension right now?`,
+      insights: [...insights, "10-min movement -> 25% tension drop"],
     }
   }
-  if (
-    q.includes("sad") ||
-    q.includes("down") ||
-    q.includes("unhappy") ||
-    q.includes("cry") ||
-    q.includes("depress")
-  ) {
+
+  if (topic === "work") {
     return {
-      reply: `I feel that dip with you. In our '${currentPattern}' cycle, low-energy days are biological signals that our nervous system needs gentle restoration, not harsh criticism. Let's take pressure off today: hydrate, bundle up in comfort, and do something gentle. What feels like the heaviest burden right now?`,
-      insights: [
-        "State: Compassionate rest required",
-        "Recommendation: Low somatic load",
-      ],
+      reply: `Our focus under the '${currentPattern}' archetype works best in 25-minute Pomodoro bursts with clear stopping points. Trying to force multi-hour marathons causes mental friction and task avoidance. Pick just ONE small micro-task and start for 5 minutes without pressure.`,
+      insights: [...insights, "Strategy: 25-min micro-sprints"],
     }
   }
-  if (
-    q.includes("work") ||
-    q.includes("study") ||
-    q.includes("focus") ||
-    q.includes("burnout") ||
-    q.includes("procrastin")
-  ) {
+
+  if (topic === "relationships") {
     return {
-      reply: `Our attention span under '${currentPattern}' works best in 25-minute Pomodoro bursts with clear stopping points. Trying to force multi-hour marathons causes mental friction and task avoidance. Pick just ONE small micro-task and start for 5 minutes without pressure.`,
-      insights: [
-        "Strategy: 25-min micro-sprints",
-        "Warning: High cognitive saturation",
-      ],
+      reply: `Interpersonal tension has the fastest, most direct impact on our autonomic nervous system. When conflict arises, our brain interprets it as a threat to belonging. Remember that the other person's reaction is shaped by their own stress filters, not a definition of your worth. Would you like to draft a calm response together?`,
+      insights: [...insights, "Relational Decentering"],
     }
   }
+
+  if (topic === "sadness") {
+    return {
+      reply: `I feel that dip with you. In our '${currentPattern}' cycle, low-energy days are biological signals that our nervous system needs gentle restoration, not harsh self-criticism. Let's take pressure off today: hydrate, bundle up in warmth, and let yourself rest. What feels like the heaviest burden right now?`,
+      insights: [...insights, "State: Compassionate rest required"],
+    }
+  }
+
+  // Dynamic Adaptive Fallback (No repetitive template!)
+  const cleanedQuery = query.length > 60 ? query.slice(0, 60) + "..." : query
   return {
-    reply: `Reflecting on "${query}": As your Digital Twin in the '${currentPattern}' state, I analyze how your thoughts connect to your nervous system rhythms. Every entry you log refines my understanding of what helps you flourish. How is your energy holding up in this moment?`,
-    insights: [`Archetype: ${currentPattern}`, `Vector Grounding: Active`],
+    reply: `Hearing your reflection on "${cleanedQuery}": as your Digital Twin in the '${currentPattern}' state, I perceive the ${emotion.toLowerCase()} undertone in what you're experiencing. In our wellness vectors, tuning into how this thought affects your body tension is the fastest route to clarity. What feels like the most supportive thing for you right now?`,
+    insights: [...insights, "Dynamic Vector Grounding"],
   }
 }
 
@@ -169,12 +189,18 @@ export default function DigitalTwinChat({
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
 
-    setMessages((prev) => [...prev, userMsg])
+    const nextMessages = [...messages, userMsg]
+    setMessages(nextMessages)
     if (!textToSend) setInput("")
     setLoading(true)
 
+    const historyPayload = nextMessages.map((m) => ({
+      role: m.sender === "user" ? "user" : "assistant",
+      content: m.text,
+    }))
+
     try {
-      const res: TwinChatResult = await api.insights.twinChat(query)
+      const res: TwinChatResult = await api.insights.twinChat(query, historyPayload)
       const twinMsg: Message = {
         id: `t-${Date.now()}`,
         sender: "twin",
@@ -184,8 +210,8 @@ export default function DigitalTwinChat({
       }
       setMessages((prev) => [...prev, twinMsg])
     } catch {
-      // Dynamic local heuristic fallback when server is waking or offline
-      const dynamic = getDynamicTwinReply(query, currentPattern, totalDays)
+      // Dynamic local heuristic fallback with full history & emotion awareness
+      const dynamic = getDynamicTwinReply(query, historyPayload, currentPattern, totalDays)
       const twinFallback: Message = {
         id: `t-${Date.now()}`,
         sender: "twin",

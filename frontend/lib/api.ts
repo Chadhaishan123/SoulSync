@@ -245,10 +245,10 @@ export const api = {
         method: "POST",
         body: payload,
       }),
-    twinChat: (message: string) =>
+    twinChat: (message: string, history?: { role: string; content: string }[]) =>
       request<import("@/types/mood").TwinChatResult>("/api/insights/twin/chat", {
         method: "POST",
-        body: { message },
+        body: { message, history },
       }),
   },
 

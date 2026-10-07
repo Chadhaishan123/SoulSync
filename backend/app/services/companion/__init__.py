@@ -26,6 +26,7 @@ def generate_response(
     ml_cluster: Optional[Dict[str, Any]] = None,
     ml_anomaly: Optional[Dict[str, Any]] = None,
     country_code: Optional[str] = None,
+    conversation_history: Optional[List[Any]] = None,
 ) -> Dict[str, Any]:
     """
     Generate a companion response grounded in user data and ML insights.
@@ -51,6 +52,35 @@ def generate_response(
 
     msg_lower = user_message.lower().strip()
     clean_msg = msg_lower.rstrip("!.?")
+
+    # ── Extract conversation history context ──
+    history_items = conversation_history or []
+    history_texts = []
+    last_assistant_msg = ""
+    for m in history_items:
+        c = getattr(m, "content", "") if not isinstance(m, dict) else m.get("content", "")
+        role = getattr(m, "role", "") if not isinstance(m, dict) else m.get("role", "")
+        if c:
+            history_texts.append(c.lower())
+        if role in ["assistant", "therapist"] and c:
+            last_assistant_msg = c.lower()
+
+    full_context_str = " ".join(history_texts)
+    turn_count = len([m for m in history_items if (getattr(m, "role", "") if not isinstance(m, dict) else m.get("role", "")) == "user"])
+
+    # Determine ongoing topic
+    if any(k in msg_lower or k in full_context_str for k in ["sleep", "insomnia", "bed", "circadian", "awake", "nightmare"]):
+        active_topic = "sleep"
+    elif any(k in msg_lower or k in full_context_str for k in ["work", "job", "boss", "exam", "study", "deadline", "burnout"]):
+        active_topic = "work"
+    elif any(k in msg_lower or k in full_context_str for k in ["relationship", "partner", "friend", "fight", "argued", "breakup", "lonely"]):
+        active_topic = "relationship"
+    elif any(k in msg_lower or k in full_context_str for k in ["anxious", "anxiety", "panic", "worry", "spiral", "nervous"]):
+        active_topic = "anxiety"
+    elif any(k in msg_lower or k in full_context_str for k in ["sad", "depress", "crying", "grief", "hopeless", "hurting"]):
+        active_topic = "sadness"
+    else:
+        active_topic = "general"
 
     # ── Compute basic stats safely ──
     avg_mood = round(sum(e.mood_score for e in entries) / len(entries), 1) if entries else 7.0
@@ -135,68 +165,118 @@ def generate_response(
     elif any(w in msg_lower for w in ["sleep", "rest", "insomnia", "can't sleep", "cant sleep", "awake", "nightmare"]):
         reply = _sleep_response(entries)
 
-    # 8. Affirmative prompts
-    elif clean_msg in ["yes", "sure", "ok", "okay", "yeah", "yep", "please", "yes please", "tell me", "explore", "go ahead"]:
+    # 8. Affirmative prompts & follow-ups with contextual memory
+    elif clean_msg in ["yes", "sure", "ok", "okay", "yeah", "yep", "please", "yes please", "tell me", "explore", "go ahead", "right", "i agree", "will do"]:
+        if active_topic == "sleep":
+            reply = (
+                "Let's focus on a concrete bedtime ritual tonight: dim your lights 30 minutes before sleep, "
+                "keep your phone outside arms-reach, and try listening to deep delta frequencies or 4-7-8 breathing. "
+                "How does that routine sound for tonight?"
+            )
+        elif active_topic == "work":
+            reply = (
+                "Taking intentional pauses is essential for sustainable focus. Let's aim for a 25-minute deep work sprint, "
+                "followed by 5 minutes completely away from your monitor. What specific task would you like to focus on first?"
+            )
+        elif active_topic == "anxiety":
+            reply = (
+                "Wonderful. Notice how your body responded to that pause. Even three conscious, deep belly breaths "
+                "signal safety to your vagus nerve. Would you like to do another grounding exercise, or talk through what sparked the tension?"
+            )
+        elif active_topic == "relationship":
+            reply = (
+                "Grounding your boundaries while staying compassionate is powerful. Before speaking or messaging, "
+                "take a slow breath and ask yourself: 'What is my core need right now?' Would you like to draft what you want to communicate?"
+            )
+        else:
+            reply = (
+                f"Here are personalized recommendations based on your check-in trends (average mood: {avg_mood}/10):\n\n"
+                + _recommendation_response(entries, avg_mood, ml_trend)
+                + "\n\nWould you like to look at your sleep correlations or dive into your Digital Twin profile?"
+            )
+
+    # 9. Frustration / Resistance / Feeling stuck
+    elif any(w in msg_lower for w in ["tried that", "doesn't work", "doesnt work", "hate this", "pointless", "annoyed", "useless", "stuck", "frustrated"]):
         reply = (
-            f"Here are personalized recommendations based on your check-in trends (average mood: {avg_mood}/10):\n\n"
-            + _recommendation_response(entries, avg_mood, ml_trend)
-            + "\n\nWould you like to look at your sleep correlations or dive into your Digital Twin profile?"
+            "I completely hear your frustration. When you're already carrying so much stress, standard advice can feel hollow or exhausting. "
+            "You don't have to force yourself to do anything right now. Let's take off all the pressure. "
+            "If you could set aside expectations for the next hour, what would bring you even a tiny moment of comfort or relief?"
         )
 
-    # 9. Negative / dismissal
+    # 10. Curiosity / Inquiring / "Why"
+    elif msg_lower in ["why", "why?", "how so?", "how does that work?", "what do you mean?"] or msg_lower.startswith("why ") or msg_lower.startswith("how come"):
+        if active_topic == "sleep":
+            reply = (
+                "When sleep is fragmented, your amygdala becomes up to 60% more reactive to stressors, while prefrontal emotional regulation drops. "
+                "That's why small problems feel overwhelming when we're sleep-deprived. Protecting sleep is actually emotional defense."
+            )
+        elif active_topic == "work":
+            reply = (
+                "The brain builds up what neuroscientists call 'attentional residue' every time we switch tabs or worry about unanswered messages. "
+                "By grouping tasks into single-focus intervals, your cognitive reserve lasts much longer without burning out."
+            )
+        else:
+            reply = (
+                "Our mental and somatic systems are in constant feedback. When our thoughts anticipate difficulty, "
+                "our body releases cortisol and tenses muscles, which loops back to the brain as confirmation that danger is present. "
+                "Breaking that loop through gentle physical awareness or emotional validation allows your system to reset."
+            )
+
+    # 11. Negative / dismissal
     elif clean_msg in ["no", "nope", "not now", "nah", "later"]:
         reply = "Understood! I'm always here whenever you'd like to check in or talk. Take gentle care of yourself today."
 
-    # 10. Gratitude / thanks
+    # 12. Gratitude / thanks
     elif any(w in msg_lower for w in ["thank", "thx", "appreciate"]):
         reply = "You're very welcome! Taking time for intentional self-reflection is meaningful progress. I'm right here whenever you need me."
 
-    # 11. Mood / feelings inquiry
+    # 13. Mood / feelings inquiry
     elif any(w in msg_lower for w in ["mood", "feeling", "how am i", "how do i"]):
         reply = _mood_response(entries, avg_mood, latest, ml_trend)
 
-    # 12. Patterns / trends / insights
+    # 14. Patterns / trends / insights
     elif any(w in msg_lower for w in ["pattern", "trend", "insight", "notice", "correlation"]):
         reply = _pattern_response(entries, ml_trend, ml_cluster)
 
-    # 13. Digital twin / cluster
+    # 15. Digital twin / cluster
     elif any(w in msg_lower for w in ["twin", "cluster", "profile", "type", "archetype"]):
         reply = _twin_response(entries, ml_cluster)
 
-    # 14. Anomaly / unusual
+    # 16. Anomaly / unusual
     elif any(w in msg_lower for w in ["anomal", "unusual", "different", "weird", "strange"]):
         reply = _anomaly_response(entries, ml_anomaly)
 
-    # 15. Recommendations / suggestions
+    # 17. Recommendations / suggestions
     elif any(w in msg_lower for w in ["recommend", "suggest", "advice", "help", "what should"]):
         reply = _recommendation_response(entries, avg_mood, ml_trend)
 
-    # 16. Gratitude practice
+    # 18. Gratitude practice
     elif any(w in msg_lower for w in ["grateful", "thankful", "positive"]):
         reply = _gratitude_response(entries, avg_mood)
 
-    # 17. Default dynamic empathetic response
+    # 19. Context-aware synthesis (Grounds on active topic and user snippet)
     else:
-        if latest_mood is not None:
-            openers = [
-                f"Thank you for sharing that with me. Looking at your recent reflections, your mood has been around {latest_mood}/10 with {latest_emotion.lower()} feelings.",
-                f"I hear you. Every thought and reflection you share helps build a clearer picture of your inner world.",
-                f"I appreciate your openness. It takes intentionality to put feelings into words."
-            ]
-        else:
-            openers = [
-                "Thank you for sharing that with me. It takes openness to reflect on how we are truly feeling.",
-                "I hear you clearly. Putting experiences into words is a powerful first step toward mental clarity.",
-                "I appreciate you sharing this with me. I am right here listening without judgment."
-            ]
-        chosen_opener = random.choice(openers)
-        trend_note = f" Your current trajectory is {ml_trend.get('direction', 'stable')}." if ml_trend else ""
-        pattern_note = f" (Profile: {ml_cluster.get('current_pattern', 'Balanced')})" if ml_cluster else ""
+        snippet = user_message.strip().rstrip("!?.")
+        if len(snippet) > 65:
+            snippet = snippet[:62] + "..."
 
-        reply = (
-            f"{chosen_opener}{trend_note}{pattern_note}\n\n"
-            "Tell me more about what triggered that feeling, or if you'd like, we can explore actionable steps, try a guided grounding breath, or look at today's wellness recommendations."
-        )
+        if active_topic != "general" and turn_count >= 1:
+            reply = (
+                f"Connecting back to what we were exploring around {active_topic}: when you say '{snippet}', "
+                f"it highlights how much emotional energy is tied to this right now. "
+                f"How is this feeling showing up in your body today, and what would feeling truly supported look like?"
+            )
+        elif latest_mood is not None:
+            reply = (
+                f"I hear you reflecting on '{snippet}'. In your recent check-in vectors, you logged an average mood of {avg_mood}/10. "
+                f"Putting words to these thoughts is a powerful way to process them without letting them spiral. "
+                f"What part of this feels like the most challenging piece to navigate?"
+            )
+        else:
+            reply = (
+                f"Thank you for sharing that with me. When you bring up '{snippet}', I hear how meaningful this is to your current headspace. "
+                f"Take a gentle breath with me right now. What would feel like the most restorative step forward for you today?"
+            )
 
     # Add elevated safety resources if needed
     if safety["level"] == "elevated":
