@@ -249,12 +249,29 @@ export default function SettingsPage() {
   }
 
   const handleSimpleConsentUpdate = async (field: "environment_enabled" | "nlp_analysis_enabled", value: boolean) => {
-    if (field === "environment_enabled" && value && !locationEnabled) {
-      toast.error("Please enable Location Sharing first to track local weather and AQI")
+    if (field === "environment_enabled") {
+      setEnvEnabled(value)
+      if (value) setLocationEnabled(true)
+      saveLocalProfileBackup({
+        environment_enabled: value,
+        ...(value ? { location_enabled: true } : {}),
+      })
+      try {
+        await api.user.updateConsents({
+          environment_enabled: value,
+          ...(value ? { location_enabled: true } : {}),
+        })
+        toast.success(value ? "Live environment tracking enabled! 🌤️" : "Environment tracking disabled")
+        refreshUser()
+      } catch (err: unknown) {
+        setEnvEnabled(!value)
+        saveLocalProfileBackup({ environment_enabled: !value })
+        toast.error(err instanceof Error ? err.message : "Failed to update consent")
+      }
       return
     }
 
-    const setter = field === "environment_enabled" ? setEnvEnabled : setNlpEnabled
+    const setter = setNlpEnabled
     setter(value)
     saveLocalProfileBackup({ [field]: value })
 

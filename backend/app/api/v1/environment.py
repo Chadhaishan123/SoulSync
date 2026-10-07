@@ -61,6 +61,34 @@ LAT = Query(None, ge=-90, le=90, description="Real latitude from the browser")
 LON = Query(None, ge=-180, le=180, description="Real longitude from the browser")
 
 
+TIMEZONE_COORDINATES: Dict[str, Tuple[float, float]] = {
+    "Asia/Kolkata": (28.6139, 77.2090),
+    "Asia/Calcutta": (28.6139, 77.2090),
+    "Asia/Delhi": (28.6139, 77.2090),
+    "Asia/Mumbai": (19.0760, 72.8777),
+    "America/New_York": (40.7128, -74.0060),
+    "America/Los_Angeles": (34.0522, -118.2437),
+    "America/Chicago": (41.8781, -87.6298),
+    "America/Denver": (39.7392, -104.9903),
+    "America/Phoenix": (33.4484, -112.0740),
+    "America/Toronto": (43.6532, -79.3832),
+    "America/Vancouver": (49.2827, -123.1207),
+    "Europe/London": (51.5074, -0.1278),
+    "Europe/Paris": (48.8566, 2.3522),
+    "Europe/Berlin": (52.5200, 13.4050),
+    "Europe/Rome": (41.9028, 12.4964),
+    "Europe/Madrid": (40.4168, -3.7038),
+    "Europe/Amsterdam": (52.3676, 4.9041),
+    "Asia/Dubai": (25.2048, 55.2708),
+    "Asia/Tokyo": (35.6762, 139.6503),
+    "Asia/Singapore": (1.3521, 103.8198),
+    "Asia/Hong_Kong": (22.3193, 114.1694),
+    "Asia/Seoul": (37.5665, 126.9780),
+    "Australia/Sydney": (-33.8688, 151.2093),
+    "Australia/Melbourne": (-37.8136, 144.9631),
+}
+
+
 def resolve_coordinates(
     lat: Optional[float],
     lon: Optional[float],
@@ -83,7 +111,13 @@ def resolve_coordinates(
     if profile.last_latitude is not None and profile.last_longitude is not None:
         return profile.last_latitude, profile.last_longitude, "profile"
 
-    raise LOCATION_REQUIRED
+    # Fallback to user timezone coordinates if available, avoiding unexpected 409
+    tz = getattr(profile, "timezone", None)
+    if tz and tz in TIMEZONE_COORDINATES:
+        c_lat, c_lon = TIMEZONE_COORDINATES[tz]
+        return c_lat, c_lon, "timezone"
+
+    return 28.6139, 77.2090, "default"
 
 
 def _unreachable(what: str) -> HTTPException:

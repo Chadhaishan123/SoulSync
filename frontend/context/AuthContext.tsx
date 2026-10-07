@@ -49,6 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (saved.environment_enabled !== undefined) me.profile.environment_enabled = saved.environment_enabled
             if (saved.nlp_analysis_enabled !== undefined) me.profile.nlp_analysis_enabled = saved.nlp_analysis_enabled
             if (saved.notifications_enabled !== undefined) me.profile.notifications_enabled = saved.notifications_enabled
+            if (saved.last_latitude !== undefined && saved.last_latitude !== null) me.profile.last_latitude = saved.last_latitude
+            if (saved.last_longitude !== undefined && saved.last_longitude !== null) me.profile.last_longitude = saved.last_longitude
+            if (saved.last_city) me.profile.last_city = saved.last_city
           }
         } catch {}
       }
@@ -88,6 +91,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (savedProfile.environment_enabled !== undefined) me.profile.environment_enabled = savedProfile.environment_enabled
         if (savedProfile.nlp_analysis_enabled !== undefined) me.profile.nlp_analysis_enabled = savedProfile.nlp_analysis_enabled
         if (savedProfile.notifications_enabled !== undefined) me.profile.notifications_enabled = savedProfile.notifications_enabled
+        if (savedProfile.last_latitude !== undefined && savedProfile.last_latitude !== null) me.profile.last_latitude = savedProfile.last_latitude
+        if (savedProfile.last_longitude !== undefined && savedProfile.last_longitude !== null) me.profile.last_longitude = savedProfile.last_longitude
+        if (savedProfile.last_city) me.profile.last_city = savedProfile.last_city
 
         // Resync customizations to backend in background if backend profile had blank defaults
         api.user.updateProfile({
@@ -108,6 +114,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             environment_enabled: me.profile.environment_enabled,
             nlp_analysis_enabled: me.profile.nlp_analysis_enabled,
             notifications_enabled: me.profile.notifications_enabled,
+            last_latitude: me.profile.last_latitude,
+            last_longitude: me.profile.last_longitude,
+            last_city: me.profile.last_city,
           }))
         } catch {}
       }
