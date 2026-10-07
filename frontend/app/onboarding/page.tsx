@@ -86,29 +86,35 @@ export default function OnboardingPage() {
 
         {/* Goals Checklist */}
         <div className="space-y-4">
-          <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-blue-600" />
-            What are your wellness goals?
-          </h3>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {goalOptions.map(goal => {
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-blue-600" />
+              What are your wellness goals?
+            </h3>
+            <span className="text-xs text-gray-400 font-medium">Select multiple</span>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {goalOptions.map((goal, idx) => {
               const selected = goals.includes(goal)
+              const icons = ["🧘", "😴", "🎯", "✍️", "🏃", "📊"]
               return (
                 <button
                   key={goal}
+                  type="button"
                   onClick={() => toggleGoal(goal)}
-                  className={`flex items-center justify-between p-4 rounded-xl border text-left font-medium transition-all ${
+                  className={`aspect-square flex flex-col items-center justify-center p-4 rounded-2xl border text-center font-medium transition-all relative ${
                     selected 
-                      ? "border-blue-500 bg-blue-50/50 text-blue-700 shadow-sm" 
-                      : "border-gray-200 text-gray-600 hover:border-gray-300"
+                      ? "border-blue-600 bg-blue-50 text-blue-800 shadow-md ring-2 ring-blue-500/20" 
+                      : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:shadow-sm"
                   }`}
                 >
-                  {goal}
-                  <div className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+                  <div className={`absolute top-3 right-3 w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
                     selected ? "bg-blue-600 border-blue-600 text-white" : "border-gray-300 bg-white"
                   }`}>
-                    {selected && <Check className="w-3.5 h-3.5" />}
+                    {selected && <Check className="w-3 h-3 stroke-[3]" />}
                   </div>
+                  <span className="text-3xl mb-2">{icons[idx % icons.length]}</span>
+                  <span className="text-xs sm:text-sm font-semibold leading-tight">{goal}</span>
                 </button>
               )
             })}
@@ -122,7 +128,7 @@ export default function OnboardingPage() {
             Privacy & Environmental Integrations
           </h3>
           
-          <div className="space-y-4 bg-gray-50 p-4 rounded-xl">
+          <div className="space-y-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
             {/* Location Permission Toggle */}
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -134,7 +140,17 @@ export default function OnboardingPage() {
               <input
                 type="checkbox"
                 checked={locationEnabled}
-                onChange={(e) => setLocationEnabled(e.target.checked)}
+                onChange={(e) => {
+                  const checked = e.target.checked
+                  setLocationEnabled(checked)
+                  if (checked && typeof navigator !== "undefined" && navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      () => {},
+                      () => {},
+                      { timeout: 8000 }
+                    )
+                  }
+                }}
                 className="w-5 h-5 accent-blue-600 cursor-pointer mt-1"
               />
             </div>
@@ -158,14 +174,20 @@ export default function OnboardingPage() {
         </div>
 
         {/* Action Button */}
-        <div className="flex justify-end pt-4">
+        <div className="pt-4 flex flex-col items-end gap-2">
           <button
+            type="button"
             onClick={handleSubmit}
-            disabled={loading || goals.length === 0}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold px-8 py-3 rounded-lg shadow-md transition-colors"
+            disabled={loading || goals.length === 0 || !locationEnabled || !envConsent}
+            className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed text-white font-semibold px-8 py-3.5 rounded-xl shadow-md transition-all text-sm"
           >
             {loading ? "Saving Profile..." : "Confirm & Enter Dashboard"}
           </button>
+          {(!locationEnabled || !envConsent || goals.length === 0) && (
+            <p className="text-xs text-amber-600 font-medium">
+              * Please select at least one goal and check both statements above to activate the button.
+            </p>
+          )}
         </div>
       </div>
     </div>

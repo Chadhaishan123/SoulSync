@@ -87,3 +87,11 @@ export interface ConsentRecord {
   revoked_at: string | null
   created_at: string
 }
+
+export interface ProfileUpdateRequest {
+  name?: string
+  timezone?: string
+  wellness_goals?: string[]
+  reminder_hour?: number
+  sleep_goal_minutes?: number
+}

@@ -41,11 +41,12 @@ export default function CompanionPage() {
     }
   }
 
-  const handleSend = async () => {
-    if (!input.trim()) return
+  const handleSend = async (textToSend?: string) => {
+    const text = (textToSend || input).trim()
+    if (!text) return
     const userMessage: ChatMessage = {
       role: "user",
-      content: input.trim(),
+      content: text,
       timestamp: new Date().toISOString(),
     }
     setMessages((prev) => [...prev, userMessage])
@@ -147,14 +148,21 @@ export default function CompanionPage() {
                 Ask about your patterns, mood trends, sleep quality, or anything on your mind.
                 Responses are grounded in your actual data.
               </p>
-              <div className="flex flex-wrap gap-2 justify-center mt-2">
-                {["Why has my mood been lower?", "How's my sleep lately?", "What patterns do you see?"].map((prompt) => (
+              <div className="flex flex-wrap gap-2 justify-center mt-3 max-w-lg">
+                {[
+                  "I'm feeling anxious right now",
+                  "Guide me through a calming breath",
+                  "Why has my mood been low?",
+                  "What patterns do you see?",
+                  "Help me reframe an overwhelming thought",
+                  "How can I sleep better tonight?",
+                ].map((prompt) => (
                   <button
                     key={prompt}
-                    onClick={() => { setInput(prompt); }}
-                    className="text-xs px-3 py-1.5 rounded-full bg-secondary text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-colors"
+                    onClick={() => handleSend(prompt)}
+                    className="text-xs px-3 py-1.5 rounded-full bg-secondary border border-border/60 text-muted-foreground hover:text-foreground hover:border-soul-purple hover:bg-soul-purple/10 transition-all cursor-pointer"
                   >
-                    {prompt}
+                    ✨ {prompt}
                   </button>
                 ))}
               </div>
@@ -218,7 +226,7 @@ export default function CompanionPage() {
               className="flex-1 px-4 py-2.5 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none text-sm"
             />
             <Button
-              onClick={handleSend}
+              onClick={() => handleSend()}
               disabled={!input.trim() || sending}
               size="md"
               icon={<Send className="w-4 h-4" />}

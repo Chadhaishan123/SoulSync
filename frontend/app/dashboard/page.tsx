@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { Smile, ArrowRight, CheckCircle2, Award, MessageSquare, BookOpen, Moon } from "lucide-react"
+import { Smile, ArrowRight, CheckCircle2, Award, MessageSquare, BookOpen, Moon, Sparkles, HeartHandshake, CalendarCheck } from "lucide-react"
 import { api } from "@/lib/api"
 import { useAuth } from "@/context/AuthContext"
 import Card, { CardHeader, CardTitle } from "@/components/ui/Card"
@@ -20,6 +20,7 @@ import { EMOTION_EMOJIS, MOOD_EMOJIS } from "@/lib/constants"
 import { formatDate } from "@/lib/formatters"
 import type { DashboardData } from "@/types/mood"
 import type { Recommendation } from "@/types/activity"
+import EnvironmentLiveWidget from "@/components/features/EnvironmentLiveWidget"
 import toast from "react-hot-toast"
 
 const containerVariants = {
@@ -115,6 +116,11 @@ export default function DashboardPage() {
             Daily Check-In
           </Button>
         </Link>
+      </motion.div>
+
+      {/* Real-Time Environment Tracking Widget */}
+      <motion.div variants={itemVariants}>
+        <EnvironmentLiveWidget />
       </motion.div>
 
       {/* Top Cards Grid */}
@@ -277,20 +283,23 @@ export default function DashboardPage() {
             </CardHeader>
             <div className="space-y-2">
               {[
-                { href: "/dashboard/journal",   icon: BookOpen,       label: "Write Journal Entry", color: "text-soul-teal" },
-                { href: "/dashboard/sleep",      icon: Moon,           label: "Log Sleep",           color: "text-indigo-400" },
-                { href: "/dashboard/companion",  icon: MessageSquare,  label: "Chat with Companion", color: "text-soul-coral" },
+                { href: "/dashboard/journal",      icon: BookOpen,        label: "Write Journal Entry",  color: "text-soul-teal" },
+                { href: "/dashboard/sleep",        icon: Moon,            label: "Live Sleep Tracker",   color: "text-indigo-400" },
+                { href: "/dashboard/dreams",       icon: Sparkles,        label: "Analyze Dream",        color: "text-purple-400" },
+                { href: "/dashboard/companion",    icon: MessageSquare,   label: "AI Companion",         color: "text-soul-coral" },
+                { href: "/dashboard/therapist",    icon: HeartHandshake,  label: "Digital Therapist",    color: "text-teal-400" },
+                { href: "/dashboard/appointments", icon: CalendarCheck,   label: "Book a Doctor",        color: "text-amber-400" },
               ].map((action) => (
                 <Link
                   key={action.href}
                   href={action.href}
-                  className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border hover:border-soul-purple/30 hover:bg-secondary/50 transition-all group"
+                  className="flex items-center gap-3 px-4 py-2.5 rounded-lg border border-border hover:border-soul-purple/30 hover:bg-secondary/50 transition-all group"
                 >
-                  <action.icon className={`w-5 h-5 ${action.color}`} />
+                  <action.icon className={`w-4 h-4 ${action.color}`} />
                   <span className="text-sm font-medium text-foreground group-hover:text-soul-purple transition-colors">
                     {action.label}
                   </span>
-                  <ArrowRight className="w-4 h-4 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight className="w-3.5 h-3.5 text-muted-foreground ml-auto group-hover:translate-x-1 transition-transform" />
                 </Link>
               ))}
             </div>

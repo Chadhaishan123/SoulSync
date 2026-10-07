@@ -1,12 +1,9 @@
 """
 AI Companion response generator.
 
-Produces data-grounded responses using the user's ML insights (trend,
-cluster, anomalies, patterns) rather than just raw averages. Crisis
+Produces data-grounded, empathetic, and dynamic conversational responses
+using the user's ML insights (trend, cluster, anomalies, patterns). Crisis
 detection always takes priority.
-
-This is template-based — no LLM dependency. The templates are rich enough
-to feel conversational while remaining fully grounded in computed stats.
 """
 
 from __future__ import annotations
@@ -14,6 +11,7 @@ from __future__ import annotations
 import logging
 from collections import Counter
 from typing import Any, Dict, List, Optional
+import random
 
 from app.core.safety import assess as safety_assess, CRISIS_MESSAGE
 from app.models.companion import ENGINE_SAFETY, ENGINE_TEMPLATE
@@ -51,15 +49,16 @@ def generate_response(
             "safety": safety,
         }
 
-    msg_lower = user_message.lower()
+    msg_lower = user_message.lower().strip()
+    clean_msg = msg_lower.rstrip("!.?")
 
     if not entries:
         return {
             "reply": (
-                "I don't have any check-in data from you yet. Once you start "
-                "logging daily check-ins, I'll be able to give you personalized "
-                "insights about your mood trends, patterns, and wellness. "
-                "Try logging your first check-in to get started!"
+                "I'm here with you! Because you haven't logged any check-ins yet, I don't have "
+                "your personal baseline. Once you record your first daily check-in or journal entry, "
+                "I'll be able to correlate your mood, sleep, and stress in real-time.\n\n"
+                "In the meantime, how are you feeling right now?"
             ),
             "engine": ENGINE_TEMPLATE,
             "safety": safety,
@@ -69,19 +68,79 @@ def generate_response(
     avg_mood = round(sum(e.mood_score for e in entries) / len(entries), 1)
     latest = entries[0]  # Most recent
     latest_mood = latest.mood_score
+    latest_emotion = getattr(latest, "primary_emotion", "Neutral")
 
-    # ── Route by intent ──
+    # ── Route by dynamic conversational intents ──
 
-    clean_msg = msg_lower.strip().rstrip("!.?")
+    # 1. Greetings
+    if clean_msg in [
+        "hi", "hello", "hey", "hola", "sup", "good morning", "good afternoon",
+        "good evening", "greetings", "howdy"
+    ] or any(msg_lower.startswith(w) for w in ["hi ", "hello ", "hey "]):
+        greetings = [
+            f"Hello! It's so nice to hear from you. Your latest check-in showed a mood of {latest_mood}/10 ({latest_emotion}). How has today been treating your mind and body?",
+            f"Hey there! I'm glad you stopped by to check in. I'm holding space for you today. What's on your mind right now?",
+            f"Good to see you! Based on your recent entries, you've been averaging a {avg_mood}/10 mood. How are you feeling in this exact moment?"
+        ]
+        reply = random.choice(greetings)
 
-    # Greeting
-    if clean_msg in ["hi", "hello", "hey", "hola", "sup", "good morning", "good afternoon", "good evening", "greetings"] or any(msg_lower.startswith(w) for w in ["hi ", "hello ", "hey "]):
+    # 2. Breathing / Guided Meditation
+    elif any(w in msg_lower for w in ["breathe", "breathing", "meditat", "grounding", "relax me", "calm down", "guide me"]):
         reply = (
-            f"Hello! It's great to connect. Based on your recent check-in, your mood is currently at {latest.mood_score}/10. "
-            "How has your day been treating you? You can ask me to explore your patterns, check sleep insights, or suggest wellness habits."
+            "Let's pause and reset together right now with a 4-7-8 calming breath:\n\n"
+            "1. **Inhale** gently through your nose for **4 seconds**...\n"
+            "2. **Hold** that gentle breath softly for **7 seconds**...\n"
+            "3. **Exhale** slowly through your mouth for **8 seconds**...\n\n"
+            "Drop your shoulders, unclench your jaw, and take two more slow cycles. "
+            "How does your chest and head feel after doing that?"
         )
 
-    # Affirmative / follow-up prompts
+    # 3. Sadness / Grief / Crying / Heartbreak
+    elif any(w in msg_lower for w in ["sad", "depress", "crying", "cry", "heartbreak", "hurting", "lost", "grief", "hopeless", "down", "terrible", "bad day"]):
+        reply = (
+            f"I hear how heavy things feel right now, and I want to validate that it is completely okay to feel sad. "
+            f"You don't have to force yourself to be cheerful. In your check-in history, you noted feeling {latest_emotion.lower()} recently.\n\n"
+            "Give yourself permission to take it slow today. Drink a sip of water, wrap yourself in warmth, and let yourself rest. "
+            "Would you like to write down what's weighing on you, or would you prefer a quiet somatic exercise?"
+        )
+
+    # 4. Conflict / Relationships / Arguments
+    elif any(w in msg_lower for w in ["fight", "argued", "argument", "friend", "partner", "boyfriend", "girlfriend", "breakup", "relationship", "family", "parents"]):
+        reply = (
+            "Interpersonal conflict can cause an intense physical and emotional spike in our nervous system. "
+            "When we have a confrontation with someone close to us, our brain often perceives it as a threat to our safety.\n\n"
+            "Before reacting or over-analyzing what happened, try to take a step back. "
+            "Remember: what the other person did reflects their emotional state, not your entire worth. "
+            "Would you like to draft a calm response together, or unpack how the interaction made you feel?"
+        )
+
+    # 5. Overthinking / Anxiety / Worry / Panic
+    elif any(w in msg_lower for w in ["overthink", "anxious", "anxiety", "panic", "worry", "scared", "nervous", "spiral"]):
+        reply = (
+            "When overthinking starts spiraling, our thoughts try to solve problems that haven't even happened yet. "
+            "Let's anchor into the 5-4-3-2-1 grounding technique right now:\n\n"
+            "• Name **5 things** you can see in your room.\n"
+            "• Feel **4 textures** (your clothes, desk, phone).\n"
+            "• Notice **3 sounds** in the background.\n"
+            "• Identify **2 scents** around you.\n"
+            "• Acknowledge **1 thing** you are safe from right now.\n\n"
+            "Your mind is trying to protect you, but you are here in the present. What is the single biggest worry on your mind?"
+        )
+
+    # 6. Burnout / Work / Study / Exams / Exhaustion
+    elif any(w in msg_lower for w in ["work", "job", "boss", "exam", "college", "school", "study", "deadline", "burnout", "tired", "exhausted", "drained"]):
+        reply = (
+            f"It sounds like your energy reserves are running near empty. Your recent energy scores averaged around "
+            f"{round(sum(e.energy_level for e in entries if e.energy_level is not None) / max(1, len(entries)), 1)}/10.\n\n"
+            "Remember that rest is not a reward you earn after working yourself to exhaustion — rest is an essential biological requirement. "
+            "Can you step away from screens for just 10 minutes to close your eyes, or take a short walk to reset your attention?"
+        )
+
+    # 7. Sleep / Insomnia
+    elif any(w in msg_lower for w in ["sleep", "rest", "insomnia", "can't sleep", "cant sleep", "awake", "nightmare"]):
+        reply = _sleep_response(entries)
+
+    # 8. Affirmative prompts
     elif clean_msg in ["yes", "sure", "ok", "okay", "yeah", "yep", "please", "yes please", "tell me", "explore", "go ahead"]:
         reply = (
             f"Here are personalized recommendations based on your check-in trends (average mood: {avg_mood}/10):\n\n"
@@ -89,55 +148,59 @@ def generate_response(
             + "\n\nWould you like to look at your sleep correlations or dive into your Digital Twin profile?"
         )
 
-    # Negative / dismissal
+    # 9. Negative / dismissal
     elif clean_msg in ["no", "nope", "not now", "nah", "later"]:
         reply = "Understood! I'm always here whenever you'd like to check in or talk. Take gentle care of yourself today."
 
-    # Gratitude / thanks
+    # 10. Gratitude / thanks
     elif any(w in msg_lower for w in ["thank", "thx", "appreciate"]):
-        reply = "You're very welcome! Taking time for self-reflection is meaningful progress. I'm right here whenever you need me."
+        reply = "You're very welcome! Taking time for intentional self-reflection is meaningful progress. I'm right here whenever you need me."
 
-    # Mood / feelings
+    # 11. Mood / feelings inquiry
     elif any(w in msg_lower for w in ["mood", "feeling", "how am i", "how do i"]):
         reply = _mood_response(entries, avg_mood, latest, ml_trend)
 
-    # Sleep
-    elif any(w in msg_lower for w in ["sleep", "rest", "tired", "insomnia"]):
-        reply = _sleep_response(entries)
-
-    # Stress / anxiety
-    elif any(w in msg_lower for w in ["stress", "anxious", "overwhelm", "anxiety", "pressure"]):
-        reply = _stress_response(entries)
-
-    # Patterns / trends / insights
+    # 12. Patterns / trends / insights
     elif any(w in msg_lower for w in ["pattern", "trend", "insight", "notice", "correlation"]):
         reply = _pattern_response(entries, ml_trend, ml_cluster)
 
-    # Digital twin / cluster
+    # 13. Digital twin / cluster
     elif any(w in msg_lower for w in ["twin", "cluster", "profile", "type", "archetype"]):
         reply = _twin_response(entries, ml_cluster)
 
-    # Anomaly / unusual
+    # 14. Anomaly / unusual
     elif any(w in msg_lower for w in ["anomal", "unusual", "different", "weird", "strange"]):
         reply = _anomaly_response(entries, ml_anomaly)
 
-    # Recommendations / suggestions
+    # 15. Recommendations / suggestions
     elif any(w in msg_lower for w in ["recommend", "suggest", "advice", "help", "what should"]):
         reply = _recommendation_response(entries, avg_mood, ml_trend)
 
-    # Gratitude / positive
-    elif any(w in msg_lower for w in ["grateful", "thankful", "positive", "happy"]):
+    # 16. Gratitude practice
+    elif any(w in msg_lower for w in ["grateful", "thankful", "positive"]):
         reply = _gratitude_response(entries, avg_mood)
 
-    # Default: summary + prompt
+    # 17. Default dynamic empathetic response
     else:
-        reply = _default_response(entries, avg_mood, latest, ml_trend, ml_cluster)
+        openers = [
+            f"Thank you for sharing that with me. Looking at your recent reflections, your mood has been around {latest_mood}/10 with {latest_emotion.lower()} feelings.",
+            f"I hear you. Every thought and reflection you share helps build a clearer picture of your inner world.",
+            f"I appreciate your openness. It takes intentionality to put feelings into words."
+        ]
+        chosen_opener = random.choice(openers)
+        trend_note = f" Your current trajectory is {ml_trend.get('direction', 'stable')}." if ml_trend else ""
+        pattern_note = f" (Profile: {ml_cluster.get('current_pattern', 'Balanced')})" if ml_cluster else ""
+
+        reply = (
+            f"{chosen_opener}{trend_note}{pattern_note}\n\n"
+            "Tell me more about what triggered that feeling, or if you'd like, we can explore your trends, try a guided grounding breath, or look at today's wellness recommendations."
+        )
 
     # Add elevated safety resources if needed
     if safety["level"] == "elevated":
         reply += (
-            "\n\nI also want you to know that support is available if you need it. "
-            "You can reach out to a helpline anytime — they're free and confidential."
+            "\n\nI also want you to know that compassionate support is always available. "
+            "You can reach out to a professional helpline anytime — they're free, confidential, and available 24/7."
         )
 
     return {
@@ -172,15 +235,15 @@ def _mood_response(entries, avg_mood, latest, ml_trend):
 def _sleep_response(entries):
     sleep_scores = [e.sleep_quality for e in entries if e.sleep_quality is not None]
     if not sleep_scores:
-        return "I don't have enough sleep data yet. Try rating your sleep quality in your next check-in."
+        return "I don't have enough sleep data yet. Try rating your sleep quality in your next check-in or use the Live Sleep Stopwatch."
 
     avg = round(sum(sleep_scores) / len(sleep_scores), 1)
     latest_sleep = sleep_scores[0]
 
     tip = (
-        "Your sleep quality looks good — keep up what's working!"
+        "Your sleep quality looks good — keep up your wind-down habits!"
         if avg >= 7
-        else "Consider a consistent bedtime routine. Even small changes like reducing screen time before bed can help."
+        else "Consider keeping a consistent bedtime routine. Dimming blue screens 45 minutes prior to sleep can help melatonin production."
     )
 
     return (
@@ -198,7 +261,7 @@ def _stress_response(entries):
 
     tip = (
         "That's elevated. Try a 5-minute breathing exercise: inhale for 4 counts, hold for 4, exhale for 6. "
-        "Short walks also help reset your nervous system."
+        "Short outdoor walks also help down-regulate an active sympathetic nervous system."
         if avg >= 6
         else "You seem to be managing stress well. Keep doing what works for you!"
     )
@@ -212,22 +275,22 @@ def _pattern_response(entries, ml_trend, ml_cluster):
     if ml_trend:
         direction = ml_trend.get("direction", "stable")
         backed = "ML-backed" if ml_trend.get("is_model_backed") else "rule-based"
-        parts.append(f"**Trend:** Your mood is {direction} ({backed}).")
+        parts.append(f"• **Trend:** Your mood is {direction} ({backed}).")
 
     if ml_cluster:
         pattern = ml_cluster.get("current_pattern", "Balanced")
-        parts.append(f"**Pattern:** You're currently in a '{pattern}' phase.")
+        parts.append(f"• **Pattern:** You're currently in a '{pattern}' phase.")
 
     emotions = [e.primary_emotion for e in entries if e.primary_emotion]
     if emotions:
         top_3 = Counter(emotions).most_common(3)
         em_list = ", ".join(f"{em} ({c}x)" for em, c in top_3)
-        parts.append(f"**Top emotions:** {em_list}")
+        parts.append(f"• **Top emotions:** {em_list}")
 
     if not parts:
-        return "Keep logging check-ins — I need at least 14 entries to find meaningful patterns in your data."
+        return "Keep logging check-ins — I need a few more entries to identify deeper patterns."
 
-    return "Here's what I see in your data:\n\n" + "\n".join(parts)
+    return "Here's what your data reveals:\n\n" + "\n".join(parts)
 
 
 def _twin_response(entries, ml_cluster):
@@ -242,8 +305,8 @@ def _twin_response(entries, ml_cluster):
     dist = ", ".join(f"{k}: {v} days" for k, v in clusters.items() if v > 0)
 
     return (
-        f"Your digital twin analysis (via {backed}) shows you're currently in a "
-        f"'{pattern}' state. Across {total} days analyzed, your distribution is: {dist}."
+        f"Your digital twin profile (via {backed}) identifies you currently in a "
+        f"'{pattern}' state. Across {total} recorded days, your pattern distribution is: {dist}."
     )
 
 
@@ -258,45 +321,28 @@ def _anomaly_response(entries, ml_anomaly):
 
 
 def _recommendation_response(entries, avg_mood, ml_trend):
-    parts = ["Based on your data, here are some suggestions:\n"]
+    parts = ["Based on your data, here are customized suggestions:\n"]
 
     if avg_mood < 5:
-        parts.append("• Your mood has been low — gentle movement like a walk or stretching can help lift it.")
+        parts.append("• Your mood has been low — gentle movement like a walk or stretching can help release endorphins.")
     if any(e.stress_level and e.stress_level >= 7 for e in entries[:3]):
-        parts.append("• Your stress has been high recently — try a breathing exercise or meditation session.")
+        parts.append("• Your stress has been high recently — try a 4-7-8 breathing exercise or somatic reset.")
     if any(e.sleep_quality and e.sleep_quality <= 4 for e in entries[:3]):
-        parts.append("• Your sleep quality has been low — consider limiting caffeine after noon and setting a wind-down alarm.")
+        parts.append("• Your sleep quality has been low — try the Live Sleep stopwatch and avoid late caffeine.")
 
     if ml_trend and ml_trend.get("direction") == "declining":
-        parts.append("• Your mood trend is declining — this might be a good time to connect with someone you trust.")
+        parts.append("• Your mood trend is declining — consider reaching out to someone you trust or a counselor.")
 
     if len(parts) == 1:
-        parts.append("• You're doing well overall! Keep up your current routines.")
-        parts.append("• Consider journaling about what's working — it reinforces positive habits.")
+        parts.append("• You're doing well overall! Keep up your steady mindfulness routines.")
+        parts.append("• Consider journaling about what brought you peace today to reinforce positive habits.")
 
     return "\n".join(parts)
 
 
 def _gratitude_response(entries, avg_mood):
     return (
-        f"It's wonderful that you're focusing on gratitude! Research shows it can improve mood by 10-25% "
-        f"over time. Your current average mood is {avg_mood}/10. Try the journal's gratitude mode "
-        f"to build a daily gratitude practice."
-    )
-
-
-def _default_response(entries, avg_mood, latest, ml_trend, ml_cluster):
-    trend_bit = ""
-    if ml_trend:
-        trend_bit = f" Your mood trend is {ml_trend.get('direction', 'stable')}."
-
-    cluster_bit = ""
-    if ml_cluster:
-        cluster_bit = f" You're in a '{ml_cluster.get('current_pattern', 'Balanced')}' pattern."
-
-    return (
-        f"Thanks for sharing. Your mood has averaged {avg_mood}/10 over your last "
-        f"{len(entries)} check-ins, with your latest at {latest.mood_score}/10."
-        f"{trend_bit}{cluster_bit} "
-        f"Would you like to explore your patterns, get recommendations, or talk about something specific?"
+        f"It's wonderful that you're leaning into gratitude! Research shows intentional gratitude "
+        f"lowers cortisol and improves emotional resilience. Your current average mood is {avg_mood}/10. "
+        f"What is one small thing that made you smile today?"
     )

@@ -40,12 +40,12 @@ def _label_cluster(centroid: np.ndarray) -> str:
     """
     mood, stress, energy, sleep_q = centroid
 
+    if mood <= 4.5:
+        return "Recovery"
     if stress >= 6.5:
         return "High-Stress"
     if energy <= 4.0:
         return "Low-Energy"
-    if mood <= 4.5:
-        return "Recovery"
     return "Balanced"
 
 
@@ -64,15 +64,15 @@ def cluster_user(entries: List[Any]) -> Dict[str, Any]:
     """
     start = time.perf_counter_ns()
 
-    if len(entries) < 3:
+    if not entries:
         elapsed = int((time.perf_counter_ns() - start) / 1_000_000)
         return {
             "current_pattern": "Balanced",
-            "total_days": len(entries),
-            "clusters": {"Balanced": len(entries)},
+            "total_days": 0,
+            "clusters": {"Balanced": 0, "High-Stress": 0, "Low-Energy": 0, "Recovery": 0},
             "centroids": {},
             "is_model_backed": False,
-            "input_row_count": len(entries),
+            "input_row_count": 0,
             "computed_ms": elapsed,
             "model_name": "rule_based",
         }
@@ -81,21 +81,31 @@ def cluster_user(entries: List[Any]) -> Dict[str, Any]:
     X = []
     for e in entries:
         X.append([
-            e.mood_score,
-            e.stress_level if e.stress_level is not None else 5,
-            e.energy_level if e.energy_level is not None else 5,
-            e.sleep_quality if e.sleep_quality is not None else 5,
+            float(e.mood_score),
+            float(e.stress_level if e.stress_level is not None else 5),
+            float(e.energy_level if e.energy_level is not None else 5),
+            float(e.sleep_quality if e.sleep_quality is not None else 5),
         ])
     X = np.array(X, dtype=float)
 
-    # Rule-based fallback
+    # Rule-based fallback for small sample sizes (< MIN_ENTRIES)
     if len(entries) < MIN_ENTRIES:
         clusters = {"Balanced": 0, "High-Stress": 0, "Low-Energy": 0, "Recovery": 0}
-        for row in X:
-            label = _label_cluster(row)
-            clusters[label] += 1
+        for i, row in enumerate(X):
+            e = entries[i]
+            # If explicit emotion is Sad or mood is low, mark as Recovery
+            if getattr(e, "primary_emotion", None) == "Sad" or row[0] <= 4.5:
+                label = "Recovery"
+            else:
+                label = _label_cluster(row)
+            clusters[label] = clusters.get(label, 0) + 1
 
-        latest_label = _label_cluster(X[-1])
+        latest_entry = entries[-1]
+        if getattr(latest_entry, "primary_emotion", None) == "Sad" or X[-1][0] <= 4.5:
+            latest_label = "Recovery"
+        else:
+            latest_label = _label_cluster(X[-1])
+
         elapsed = int((time.perf_counter_ns() - start) / 1_000_000)
         return {
             "current_pattern": latest_label,

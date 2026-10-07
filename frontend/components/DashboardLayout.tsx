@@ -15,7 +15,10 @@ import {
   MessageSquare, 
   Settings, 
   LogOut,
-  User
+  User,
+  Sparkles,
+  HeartHandshake,
+  CalendarCheck
 } from "lucide-react"
 
 interface SidebarItem {
@@ -29,10 +32,13 @@ const menuItems: SidebarItem[] = [
   { name: "Daily Check-In", href: "/dashboard/check-in", icon: Smile },
   { name: "AI Journal", href: "/dashboard/journal", icon: BookOpen },
   { name: "Sleep Tracker", href: "/dashboard/sleep", icon: Moon },
-  { name: "Insights & Forecast", href: "/dashboard/insights", icon: LineChart },
+  { name: "Dream Analyzer", href: "/dashboard/dreams", icon: Sparkles },
   { name: "Digital Twin", href: "/dashboard/digital-twin", icon: Brain },
+  { name: "Insights & Forecast", href: "/dashboard/insights", icon: LineChart },
   { name: "Recommendations", href: "/dashboard/recommendations", icon: Award },
   { name: "AI Companion", href: "/dashboard/companion", icon: MessageSquare },
+  { name: "Digital Therapist", href: "/dashboard/therapist", icon: HeartHandshake },
+  { name: "Book Doctor", href: "/dashboard/appointments", icon: CalendarCheck },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 

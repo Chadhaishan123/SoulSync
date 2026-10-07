@@ -171,7 +171,7 @@ export const api = {
   user: {
     getMe: () =>
       request<import("@/types/auth").MeResponse>("/api/v1/users/me"),
-    updateProfile: (data: Partial<import("@/types/auth").UserProfile>) =>
+    updateProfile: (data: import("@/types/auth").ProfileUpdateRequest) =>
       request("/api/v1/users/me", { method: "PATCH", body: data }),
     onboarding: (data: import("@/types/auth").OnboardingRequest) =>
       request("/api/v1/users/me/onboarding", { method: "POST", body: data }),
@@ -265,6 +265,13 @@ export const api = {
   },
 
   environment: {
+    now: (lat?: number, lon?: number) => {
+      const params = new URLSearchParams()
+      if (lat !== undefined) params.append("lat", lat.toString())
+      if (lon !== undefined) params.append("lon", lon.toString())
+      const qs = params.toString() ? `?${params.toString()}` : ""
+      return request<any>(`/api/v1/env/now${qs}`)
+    },
     current: () =>
       request<import("@/types/environment").EnvironmentCurrent>(
         "/api/v1/environment/current"
