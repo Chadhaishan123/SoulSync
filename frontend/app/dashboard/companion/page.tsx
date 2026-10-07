@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useRef } from "react"
 import { motion } from "framer-motion"
 import { MessageSquare, Send, Plus, Bot, User } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
 import { api } from "@/lib/api"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
@@ -17,27 +18,93 @@ interface ChatMessage {
 }
 
 export default function CompanionPage() {
+  const { user } = useAuth()
+  const cleanEmail = user?.email?.trim().toLowerCase() || ""
+
   const [sessions, setSessions] = useState<ConversationSession[]>([])
   const [activeSession, setActiveSession] = useState<number | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState("")
   const [sending, setSending] = useState(false)
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    loadSessions()
-  }, [])
+    if (cleanEmail) {
+      loadSessions()
+    }
+  }, [cleanEmail])
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  const loadSessionMessages = async (sessionId: number) => {
+    setActiveSession(sessionId)
+    setLoadingHistory(true)
+
+    // First check local cache for instant zero-lag rendering
+    if (cleanEmail) {
+      try {
+        const rawCached = localStorage.getItem(`soulsync_companion_msgs_${cleanEmail}_${sessionId}`)
+        if (rawCached) {
+          const parsed = JSON.parse(rawCached)
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMessages(parsed)
+          }
+        }
+      } catch {}
+    }
+
+    try {
+      const remoteMsgs = await api.companion.messages(sessionId)
+      if (remoteMsgs && remoteMsgs.length > 0) {
+        const formatted: ChatMessage[] = remoteMsgs.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+          timestamp: m.created_at,
+        }))
+        setMessages(formatted)
+        if (cleanEmail) {
+          localStorage.setItem(`soulsync_companion_msgs_${cleanEmail}_${sessionId}`, JSON.stringify(formatted))
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch remote messages, relying on cache:", err)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
   const loadSessions = async () => {
+    let localSessList: ConversationSession[] = []
+    if (cleanEmail) {
+      try {
+        const rawSess = localStorage.getItem(`soulsync_companion_sessions_${cleanEmail}`)
+        if (rawSess) localSessList = JSON.parse(rawSess)
+      } catch {}
+    }
+
     try {
       const data = await api.companion.sessions()
-      setSessions(data)
+      const effectiveList = data && data.length > 0 ? data : localSessList
+      setSessions(effectiveList)
+
+      if (cleanEmail && data && data.length > 0) {
+        localStorage.setItem(`soulsync_companion_sessions_${cleanEmail}`, JSON.stringify(data))
+      }
+
+      // Automatically load the latest session if none currently open
+      if (effectiveList.length > 0 && activeSession === null) {
+        loadSessionMessages(effectiveList[0].id)
+      }
     } catch {
-      // ok
+      if (localSessList.length > 0) {
+        setSessions(localSessList)
+        if (activeSession === null) {
+          loadSessionMessages(localSessList[0].id)
+        }
+      }
     }
   }
 
@@ -153,7 +220,17 @@ export default function CompanionPage() {
         content: response.reply,
         timestamp: new Date().toISOString(),
       }
-      setMessages((prev) => [...prev, assistantMessage])
+      setMessages((prev) => {
+        const updated = [...prev, assistantMessage]
+        const targetSid = activeSession || response.session_id
+        if (targetSid && cleanEmail) {
+          try {
+            localStorage.setItem(`soulsync_companion_msgs_${cleanEmail}_${targetSid}`, JSON.stringify(updated))
+          } catch {}
+        }
+        return updated
+      })
+
       if (!activeSession) {
         setActiveSession(response.session_id)
         loadSessions()
@@ -166,7 +243,16 @@ export default function CompanionPage() {
         content: reply,
         timestamp: new Date().toISOString(),
       }
-      setMessages((prev) => [...prev, assistantMessage])
+      setMessages((prev) => {
+        const updated = [...prev, assistantMessage]
+        const targetSid = activeSession || 1
+        if (targetSid && cleanEmail) {
+          try {
+            localStorage.setItem(`soulsync_companion_msgs_${cleanEmail}_${targetSid}`, JSON.stringify(updated))
+          } catch {}
+        }
+        return updated
+      })
     } finally {
       setSending(false)
     }
@@ -205,10 +291,10 @@ export default function CompanionPage() {
           {sessions.map((s) => (
             <button
               key={s.id}
-              onClick={() => { setActiveSession(s.id); setMessages([]) }}
+              onClick={() => loadSessionMessages(s.id)}
               className={`w-full text-left px-3 py-2 rounded-lg text-xs transition-all ${
                 activeSession === s.id
-                  ? "bg-soul-purple/10 text-soul-purple"
+                  ? "bg-soul-purple/10 text-soul-purple font-medium border border-soul-purple/20"
                   : "text-muted-foreground hover:bg-secondary"
               }`}
             >
@@ -234,7 +320,14 @@ export default function CompanionPage() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
-          {messages.length === 0 && (
+          {loadingHistory && messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+              <div className="w-8 h-8 border-2 border-soul-purple border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs text-muted-foreground">Loading conversation history...</p>
+            </div>
+          )}
+
+          {!loadingHistory && messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
               <div className="w-16 h-16 rounded-2xl bg-soul-coral/10 flex items-center justify-center">
                 <MessageSquare className="w-8 h-8 text-soul-coral" />

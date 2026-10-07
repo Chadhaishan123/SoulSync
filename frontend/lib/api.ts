@@ -262,6 +262,10 @@ export const api = {
       request<import("@/types/companion").ConversationSession[]>(
         "/api/v1/users/me/companion/sessions"
       ),
+    messages: (sessionId: number) =>
+      request<import("@/types/companion").ConversationMessage[]>(
+        `/api/v1/users/me/companion/sessions/${sessionId}/messages`
+      ),
   },
 
   recommendations: {

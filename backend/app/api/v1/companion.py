@@ -19,7 +19,7 @@ from app.models import (
     User,
 )
 from app.models.companion import ROLE_ASSISTANT, ROLE_USER
-from app.schemas.companion import CompanionRequest, CompanionResponse, SessionOut
+from app.schemas.companion import CompanionRequest, CompanionResponse, MessageOut, SessionOut
 from app.services.companion import generate_response
 from app.services.ml import cluster_user, detect_anomalies, predict_trend
 
@@ -156,3 +156,30 @@ def list_sessions(
         .limit(20)
     ).all()
     return [SessionOut.model_validate(s) for s in sessions]
+
+
+@router.get("/me/companion/sessions/{session_id}/messages", response_model=List[MessageOut])
+def get_session_messages(
+    session_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> List[MessageOut]:
+    """Retrieve all messages in a conversation session, chronologically."""
+    session = db.scalar(
+        select(ConversationSession).where(
+            ConversationSession.id == session_id,
+            ConversationSession.user_id == user.id,
+        )
+    )
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Session not found",
+        )
+
+    messages = db.scalars(
+        select(ConversationMessage)
+        .where(ConversationMessage.session_id == session.id)
+        .order_by(ConversationMessage.created_at.asc())
+    ).all()
+    return [MessageOut.model_validate(m) for m in messages]

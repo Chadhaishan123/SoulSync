@@ -15,6 +15,7 @@ import {
   ChevronRight,
   HelpCircle,
 } from "lucide-react"
+import { useAuth } from "@/context/AuthContext"
 import Card from "@/components/ui/Card"
 import Button from "@/components/ui/Button"
 import Badge from "@/components/ui/Badge"
@@ -35,8 +36,6 @@ interface DreamRecord {
   integrationPrompt: string
 }
 
-const STORAGE_KEY = "soulsync_dream_journal"
-
 const WAKING_EMOTIONS = [
   { label: "Peaceful", emoji: "🕊️" },
   { label: "Anxious", emoji: "😰" },
@@ -47,6 +46,10 @@ const WAKING_EMOTIONS = [
 ]
 
 export default function DreamAnalyzerPage() {
+  const { user } = useAuth()
+  const cleanEmail = user?.email?.trim().toLowerCase()
+  const storageKey = cleanEmail ? `soulsync_dream_journal_${cleanEmail}` : null
+
   const [dreams, setDreams] = useState<DreamRecord[]>([])
   const [title, setTitle] = useState("")
   const [narrative, setNarrative] = useState("")
@@ -56,20 +59,27 @@ export default function DreamAnalyzerPage() {
   const [selectedDream, setSelectedDream] = useState<DreamRecord | null>(null)
 
   useEffect(() => {
+    if (!storageKey) {
+      setDreams([])
+      return
+    }
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
+      const stored = localStorage.getItem(storageKey)
       if (stored) {
         setDreams(JSON.parse(stored))
+      } else {
+        setDreams([])
       }
     } catch {
-      // ignore
+      setDreams([])
     }
-  }, [])
+  }, [storageKey])
 
   const saveDreamsToStorage = (updated: DreamRecord[]) => {
     setDreams(updated)
+    if (!storageKey) return
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+      localStorage.setItem(storageKey, JSON.stringify(updated))
     } catch {
       // ignore
     }

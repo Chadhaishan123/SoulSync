@@ -28,3 +28,11 @@ class SessionOut(ORMModel):
     last_message_at: Optional[dt.datetime] = None
     is_archived: bool = False
     created_at: dt.datetime
+
+
+class MessageOut(ORMModel):
+    id: int
+    session_id: int
+    role: str
+    content: str
+    created_at: dt.datetime

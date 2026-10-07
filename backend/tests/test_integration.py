@@ -353,6 +353,24 @@ class TestCompanion:
         })
         assert resp.status_code == 404
 
+    def test_get_session_messages(self, client, auth_headers):
+        resp = client.post("/api/v1/users/me/companion", headers=auth_headers, json={
+            "message": "Hello companion, test history retrieval",
+        })
+        assert resp.status_code == 200
+        session_id = resp.json()["session_id"]
+
+        resp_msgs = client.get(
+            f"/api/v1/users/me/companion/sessions/{session_id}/messages",
+            headers=auth_headers,
+        )
+        assert resp_msgs.status_code == 200
+        msgs = resp_msgs.json()
+        assert len(msgs) >= 2
+        assert msgs[0]["role"] == "user"
+        assert msgs[0]["content"] == "Hello companion, test history retrieval"
+        assert msgs[1]["role"] == "assistant"
+
 
 # =====================================================================
 # 8. Insights Dashboard (ML-powered)
