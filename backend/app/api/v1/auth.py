@@ -408,15 +408,16 @@ def forgot_password(
 
     reset_link = f"{settings.FRONTEND_URL.rstrip('/')}/reset-password?token={raw_token}"
 
+    email_sent = False
     if settings.SMTP_HOST:
-        _send_reset_email(email, reset_link)
+        email_sent = _send_reset_email(email, reset_link)
 
-    log.info("Password reset link created for user_id=%s: %s", user.id, reset_link)
+    log.info("Password reset link created for user_id=%s: %s (email_sent=%s)", user.id, reset_link, email_sent)
 
     return ForgotPasswordResponse(
         detail=generic,
         dev_token=raw_token if not settings.is_production else None,
-        reset_link=reset_link if not settings.is_production else None,
+        reset_link=reset_link,
         expires_in_minutes=settings.PASSWORD_RESET_EXPIRE_MINUTES,
     )
 

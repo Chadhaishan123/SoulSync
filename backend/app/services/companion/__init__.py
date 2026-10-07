@@ -52,23 +52,11 @@ def generate_response(
     msg_lower = user_message.lower().strip()
     clean_msg = msg_lower.rstrip("!.?")
 
-    if not entries:
-        return {
-            "reply": (
-                "I'm here with you! Because you haven't logged any check-ins yet, I don't have "
-                "your personal baseline. Once you record your first daily check-in or journal entry, "
-                "I'll be able to correlate your mood, sleep, and stress in real-time.\n\n"
-                "In the meantime, how are you feeling right now?"
-            ),
-            "engine": ENGINE_TEMPLATE,
-            "safety": safety,
-        }
-
-    # ── Compute basic stats ──
-    avg_mood = round(sum(e.mood_score for e in entries) / len(entries), 1)
-    latest = entries[0]  # Most recent
-    latest_mood = latest.mood_score
-    latest_emotion = getattr(latest, "primary_emotion", "Neutral")
+    # ── Compute basic stats safely ──
+    avg_mood = round(sum(e.mood_score for e in entries) / len(entries), 1) if entries else 7.0
+    latest = entries[0] if entries else None
+    latest_mood = latest.mood_score if latest else None
+    latest_emotion = getattr(latest, "primary_emotion", "Reflective") if latest else "Reflective"
 
     # ── Route by dynamic conversational intents ──
 
@@ -77,11 +65,18 @@ def generate_response(
         "hi", "hello", "hey", "hola", "sup", "good morning", "good afternoon",
         "good evening", "greetings", "howdy"
     ] or any(msg_lower.startswith(w) for w in ["hi ", "hello ", "hey "]):
-        greetings = [
-            f"Hello! It's so nice to hear from you. Your latest check-in showed a mood of {latest_mood}/10 ({latest_emotion}). How has today been treating your mind and body?",
-            f"Hey there! I'm glad you stopped by to check in. I'm holding space for you today. What's on your mind right now?",
-            f"Good to see you! Based on your recent entries, you've been averaging a {avg_mood}/10 mood. How are you feeling in this exact moment?"
-        ]
+        if latest_mood is not None:
+            greetings = [
+                f"Hello! It's so nice to hear from you. Your latest check-in showed a mood of {latest_mood}/10 ({latest_emotion}). How has today been treating your mind and body?",
+                f"Hey there! I'm glad you stopped by to check in. I'm holding space for you today. What's on your mind right now?",
+                f"Good to see you! Based on your recent entries, you've been averaging a {avg_mood}/10 mood. How are you feeling in this exact moment?"
+            ]
+        else:
+            greetings = [
+                "Hello! It's great to connect with you. I'm your SoulSync AI Companion. How is your day going so far?",
+                "Hey there! I'm here to listen, support, and help you reflect. What's on your mind right now?",
+                "Welcome! Whether you want to talk through a challenge, try a calming exercise, or simply chat, I'm right here with you. How are you feeling today?"
+            ]
         reply = random.choice(greetings)
 
     # 2. Breathing / Guided Meditation
@@ -182,18 +177,25 @@ def generate_response(
 
     # 17. Default dynamic empathetic response
     else:
-        openers = [
-            f"Thank you for sharing that with me. Looking at your recent reflections, your mood has been around {latest_mood}/10 with {latest_emotion.lower()} feelings.",
-            f"I hear you. Every thought and reflection you share helps build a clearer picture of your inner world.",
-            f"I appreciate your openness. It takes intentionality to put feelings into words."
-        ]
+        if latest_mood is not None:
+            openers = [
+                f"Thank you for sharing that with me. Looking at your recent reflections, your mood has been around {latest_mood}/10 with {latest_emotion.lower()} feelings.",
+                f"I hear you. Every thought and reflection you share helps build a clearer picture of your inner world.",
+                f"I appreciate your openness. It takes intentionality to put feelings into words."
+            ]
+        else:
+            openers = [
+                "Thank you for sharing that with me. It takes openness to reflect on how we are truly feeling.",
+                "I hear you clearly. Putting experiences into words is a powerful first step toward mental clarity.",
+                "I appreciate you sharing this with me. I am right here listening without judgment."
+            ]
         chosen_opener = random.choice(openers)
         trend_note = f" Your current trajectory is {ml_trend.get('direction', 'stable')}." if ml_trend else ""
         pattern_note = f" (Profile: {ml_cluster.get('current_pattern', 'Balanced')})" if ml_cluster else ""
 
         reply = (
             f"{chosen_opener}{trend_note}{pattern_note}\n\n"
-            "Tell me more about what triggered that feeling, or if you'd like, we can explore your trends, try a guided grounding breath, or look at today's wellness recommendations."
+            "Tell me more about what triggered that feeling, or if you'd like, we can explore actionable steps, try a guided grounding breath, or look at today's wellness recommendations."
         )
 
     # Add elevated safety resources if needed
@@ -211,6 +213,9 @@ def generate_response(
 
 
 def _mood_response(entries, avg_mood, latest, ml_trend):
+    if not entries or latest is None:
+        return "You haven't logged any check-ins yet. As soon as you record your first daily check-in or journal entry, I'll calculate your emotional trajectory and mood averages."
+
     trend_text = ""
     if ml_trend:
         direction = ml_trend.get("direction", "stable")

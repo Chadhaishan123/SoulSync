@@ -46,7 +46,7 @@ interface Appointment {
   date: string
   timeSlot: string
   type: "video" | "audio" | "in_person"
-  reason: string
+  reason?: string // Privacy: omitted from persistent storage
   shareTwinData: boolean
   status: "confirmed" | "completed" | "cancelled"
   bookedAt: string
@@ -159,6 +159,10 @@ export default function AppointmentsPage() {
 
   const confirmBooking = () => {
     if (!selectedDoctor) return
+    if (!reason.trim()) {
+      toast.error("Please describe your problem or concern to proceed with booking.")
+      return
+    }
     if (!selectedDate) {
       toast.error("Please pick a consultation date")
       return
@@ -167,6 +171,8 @@ export default function AppointmentsPage() {
     setBookingLoading(true)
 
     setTimeout(() => {
+      // PRIVACY SAFEGUARD: Under doctor booking policy, the patient's described problem
+      // is processed ephemerally in-session and is strictly NEVER saved to database or persistent storage.
       const newAppt: Appointment = {
         id: "appt-" + Date.now(),
         doctorId: selectedDoctor.id,
@@ -175,7 +181,6 @@ export default function AppointmentsPage() {
         date: selectedDate,
         timeSlot: selectedSlot,
         type: consultType,
-        reason: reason.trim() || "General Mental Health Consultation",
         shareTwinData: shareTwin,
         status: "confirmed",
         bookedAt: new Date().toISOString(),
@@ -184,6 +189,7 @@ export default function AppointmentsPage() {
       const updated = [newAppt, ...appointments]
       saveAppointments(updated)
       setBookingLoading(false)
+      setReason("") // Immediately clear problem text from memory
       setBookingModal(false)
       toast.success(
         `Appointment confirmed with ${selectedDoctor.name} for ${selectedDate} at ${selectedSlot}! 🎉`
@@ -453,18 +459,36 @@ export default function AppointmentsPage() {
               </div>
             </div>
 
-            {/* Reason for Visit */}
+            {/* Problem / Reason for Visit */}
             <div>
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
-                Reason for Consultation (Confidential)
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block">
+                  Describe Your Problem / Concern <span className="text-red-400">*</span>
+                </label>
+                <span className="text-[10px] text-soul-teal font-medium flex items-center gap-1">
+                  <ShieldCheck className="w-3.5 h-3.5 text-soul-teal" /> Zero-Knowledge (Never Stored)
+                </span>
+              </div>
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Briefly describe what you would like to discuss (e.g., severe anxiety, mood fluctuations, sleep troubles, panic)..."
+                placeholder="Please describe what problem or symptoms you are experiencing (required before booking)..."
                 rows={3}
-                className="w-full px-3 py-2 rounded-xl bg-input border border-border text-foreground text-sm resize-none focus:outline-none focus:ring-1 focus:ring-soul-purple"
+                className={`w-full px-3 py-2 rounded-xl bg-input border text-foreground text-sm resize-none focus:outline-none focus:ring-1 ${
+                  !reason.trim()
+                    ? "border-amber-500/50 focus:ring-amber-500"
+                    : "border-border focus:ring-soul-purple"
+                }`}
               />
+              {!reason.trim() ? (
+                <p className="text-[11px] text-amber-400 mt-1 flex items-center gap-1 font-medium">
+                  ⚠️ You must describe your problem above before you can confirm booking.
+                </p>
+              ) : (
+                <p className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
+                  🔒 Your problem is processed ephemerally for your consult request and will NOT be stored in the database.
+                </p>
+              )}
             </div>
 
             {/* Share Digital Twin Data Consent */}
@@ -491,8 +515,9 @@ export default function AppointmentsPage() {
               <Button
                 variant="primary"
                 onClick={confirmBooking}
+                disabled={!reason.trim() || bookingLoading}
                 isLoading={bookingLoading}
-                className="flex-1 bg-soul-purple hover:bg-soul-purple/90 text-white font-bold"
+                className="flex-1 bg-soul-purple hover:bg-soul-purple/90 text-white font-bold disabled:opacity-50 disabled:cursor-not-allowed"
                 icon={<CheckCircle2 className="w-4 h-4" />}
               >
                 Confirm Booking

@@ -46,6 +46,10 @@ const CBT_DISTORTIONS: Record<string, { name: string; advice: string }> = {
     name: "Emotional Reasoning",
     advice: "'I feel it, therefore it must be true.' Feelings are real, but they are not facts.",
   },
+  shouldStatements: {
+    name: "Should Statements",
+    advice: "Rigid demands ('I should', 'I must') that create guilt. Replace with 'I would prefer to'.",
+  },
 }
 
 export default function DigitalTherapistPage() {
@@ -53,7 +57,7 @@ export default function DigitalTherapistPage() {
     {
       id: "intro",
       role: "therapist",
-      text: "Welcome to your Digital Therapy space. I practice Cognitive Behavioral Therapy (CBT) and somatic support. This is a non-judgmental environment to unpack difficult emotions, deconstruct cognitive distortions, and regulate your nervous system. What situation or thought is feeling heaviest right now?",
+      text: "Welcome to your Digital Therapy space. I practice Cognitive Behavioral Therapy (CBT) and somatic regulation. This is a non-judgmental environment to unpack difficult emotions, deconstruct cognitive distortions, and regulate your nervous system. What situation or thought is feeling heaviest right now?",
     },
   ])
   const [input, setInput] = useState("")
@@ -96,52 +100,198 @@ export default function DigitalTherapistPage() {
           "I hear how much pain you are holding right now, but please know that you do not have to carry this alone. Your life is irreplaceable. " +
           "Please reach out immediately to a human professional. You can call the free, confidential 24/7 lifeline right now at 14416 (Tele-MANAS) or 988. " +
           "Click the emergency buttons above to connect immediately."
-      } else if (
+      }
+      // Greetings
+      else if (
+        lower === "hi" ||
+        lower === "hello" ||
+        lower === "hey" ||
+        lower.startsWith("hi ") ||
+        lower.startsWith("hello ") ||
+        lower.startsWith("hey ") ||
+        lower.includes("good morning") ||
+        lower.includes("good evening")
+      ) {
+        tool = "Mindful Check-in"
+        reply =
+          "Welcome to your safe reflection space. I'm glad you're here today. " +
+          "Before we dive into any thoughts, take a slow breath and notice: where is your body holding tension right now (jaw, shoulders, chest)? " +
+          "What is the most prominent feeling or situation that brought you to session today?"
+      }
+      // All-or-nothing
+      else if (
         lower.includes("always") ||
         lower.includes("never") ||
         lower.includes("completely failed") ||
         lower.includes("total failure") ||
-        lower.includes("ruined everything")
+        lower.includes("ruined everything") ||
+        lower.includes("worthless")
       ) {
         distortion = "allOrNothing"
         reply =
-          "I notice words like 'always' or 'completely failed'. In CBT, this is known as All-or-Nothing Thinking. " +
-          "When we are distressed, our brain simplifies complex situations into black-and-white absolutes. " +
-          "Can you identify even one small thing in this situation that didn't go completely wrong, or a time when the opposite was true?"
-      } else if (
+          "I notice words like 'always', 'never', or 'total failure'. In CBT, this is known as All-or-Nothing Thinking. " +
+          "When we are emotionally overwhelmed, our brain collapses nuanced reality into black-and-white absolutes. " +
+          "Let's test this: Can you identify even one small factor in this situation that didn't go completely wrong, or a previous time when this wasn't true?"
+      }
+      // Catastrophizing
+      else if (
         lower.includes("worst") ||
         lower.includes("disaster") ||
         lower.includes("horrible") ||
         lower.includes("doomed") ||
-        lower.includes("end of the world")
+        lower.includes("end of the world") ||
+        lower.includes("catastrophe")
       ) {
         distortion = "catastrophizing"
         reply =
-          "It sounds like your mind is jumping directly to the catastrophe. Catastrophizing is our amygdala's way of trying to prepare for danger, but it spikes our panic. " +
-          "Let's ground this: On a scale of 1 to 10, how likely is that worst-case scenario mathematically? " +
-          "What is the most *probable* scenario, and how would you cope if it happened?"
-      } else if (
+          "Your mind is jumping directly to the catastrophe. Catastrophizing is our amygdala's attempt to brace for danger, but it traps us in severe panic. " +
+          "Let's reality-test this thought: On a scale of 1 to 100%, what is the realistic likelihood of that worst-case outcome? " +
+          "What is the most probable middle-ground outcome, and how could you handle that step-by-step?"
+      }
+      // Mind Reading
+      else if (
         lower.includes("they hate me") ||
         lower.includes("they think i'm") ||
         lower.includes("everyone thinks") ||
-        lower.includes("judging me")
+        lower.includes("judging me") ||
+        lower.includes("laughing at me")
       ) {
         distortion = "mindReading"
         reply =
-          "You might be experiencing Mind Reading—assuming you know other people's unspoken judgments. " +
-          "We often project our own inner self-criticism onto the faces and actions of others. " +
-          "Do you have factual, spoken evidence that they believe this, or could they simply be preoccupied with their own lives?"
-      } else if (lower.includes("panic") || lower.includes("can't breathe") || lower.includes("chest tight")) {
+          "You may be experiencing Mind Reading — assuming you know other people's unspoken critical opinions. " +
+          "We often project our own internal self-doubt onto the silence or expressions of others. " +
+          "Do you have concrete, spoken facts that they think this, or is this your inner critic filling in the blanks?"
+      }
+      // Should statements
+      else if (
+        lower.includes("i should") ||
+        lower.includes("i shouldn't") ||
+        lower.includes("i must") ||
+        lower.includes("i ought to") ||
+        lower.includes("i have to be perfect")
+      ) {
+        distortion = "shouldStatements"
+        reply =
+          "Notice the word 'should' or 'must'. In cognitive therapy, 'Should Statements' impose tyrannical, rigid rules on ourselves that generate guilt and shame. " +
+          "What happens if you replace 'I should' with 'I would prefer to, but it is okay that I am human'? " +
+          "How does that shift the pressure in your chest?"
+      }
+      // Panic / Somatic overload
+      else if (
+        lower.includes("panic") ||
+        lower.includes("can't breathe") ||
+        lower.includes("cant breathe") ||
+        lower.includes("chest tight") ||
+        lower.includes("racing heart") ||
+        lower.includes("shaking")
+      ) {
         tool = "Somatic Reset"
         reply =
-          "Let's step out of the thoughts and drop straight into the body. Place one hand flat on your chest and one on your belly. " +
-          "Take a slow breath into your belly for 4 counts, hold gently for 2, and sigh it out through your mouth for 6 counts. " +
-          "Feel your feet pressing firmly against the floor beneath you. You are safe in this physical moment."
-      } else {
+          "Let's step out of your racing thoughts and anchor immediately into your physical senses. " +
+          "1. Place one hand flat over your heart, and one on your stomach.\n" +
+          "2. Inhale gently for 4 counts, feel your belly expand.\n" +
+          "3. Exhale slowly through your mouth for 6 counts with a soft sigh.\n\n" +
+          "Feel your feet resting on the floor. You are in a safe room right now. What are two physical objects you see around you?"
+      }
+      // Sadness / Grief / Emptiness
+      else if (
+        lower.includes("sad") ||
+        lower.includes("depress") ||
+        lower.includes("empty") ||
+        lower.includes("numb") ||
+        lower.includes("crying") ||
+        lower.includes("lost") ||
+        lower.includes("grief") ||
+        lower.includes("hurting")
+      ) {
+        tool = "Compassionate Inquiry"
         reply =
-          "Thank you for sharing that with me. It takes emotional courage to articulate vulnerability. " +
-          "If you were speaking to a dear friend who was in this exact situation, what compassionate advice would you offer them? " +
-          "Often, we extend far more kindness to others than we permit ourselves to receive."
+          "I want to validate how heavy and exhausting sadness feels. It is completely natural to feel down, and you do not have to force yourself to 'fix' it this second. " +
+          "Often, sadness is our body's way of asking for quiet, tender space. " +
+          "Can you treat yourself with the gentle care you'd offer a young child who is feeling sad? What is one comforting thing you can do for yourself today?"
+      }
+      // Work / Burnout / Imposter Syndrome
+      else if (
+        lower.includes("work") ||
+        lower.includes("job") ||
+        lower.includes("boss") ||
+        lower.includes("exam") ||
+        lower.includes("burnout") ||
+        lower.includes("imposter") ||
+        lower.includes("fraud") ||
+        lower.includes("deadline")
+      ) {
+        tool = "Cognitive Restructuring"
+        reply =
+          "Work anxiety and imposter feelings usually stem from tying our fundamental self-worth to perfection and external productivity. " +
+          "Remember: feeling like an imposter doesn't mean you are incompetent — it usually means you care deeply about doing well. " +
+          "What is the actual, objective evidence of your capabilities and accomplishments that your anxious brain is ignoring right now?"
+      }
+      // Interpersonal / Breakup / Relationship
+      else if (
+        lower.includes("relationship") ||
+        lower.includes("partner") ||
+        lower.includes("breakup") ||
+        lower.includes("fight") ||
+        lower.includes("argued") ||
+        lower.includes("ex") ||
+        lower.includes("lonely") ||
+        lower.includes("alone")
+      ) {
+        tool = "Relational Decentering"
+        reply =
+          "Relational friction and heartbreak trigger our deepest evolutionary fears of abandonment and disconnection. " +
+          "When someone close to us acts in a hurtful way, our immediate instinct is to ask: 'What did I do wrong?' " +
+          "Try to decenter: their behavior is a reflection of their own emotional maturity and stress triggers, not your worth. " +
+          "What boundary or emotional need do you need to honor for yourself in this relationship?"
+      }
+      // Sleep & Racing thoughts
+      else if (
+        lower.includes("sleep") ||
+        lower.includes("insomnia") ||
+        lower.includes("cant sleep") ||
+        lower.includes("night") ||
+        lower.includes("bed")
+      ) {
+        tool = "CBT-I Thought Diffusing"
+        reply =
+          "When the room goes dark and quiet, the mind often takes that silence as an opportunity to review every unsolved worry. " +
+          "In CBT-I, we don't try to force sleep. Instead, tell your mind: 'Thank you for trying to solve problems, but right now is for resting.' " +
+          "If you've been lying in bed awake for over 20 minutes, get up, sit in dim light, and write your worries on paper so your brain knows they won't be forgotten."
+      }
+      // Affirmative / Socratic continuity
+      else if (
+        lower === "yes" ||
+        lower === "yeah" ||
+        lower === "okay" ||
+        lower === "sure" ||
+        lower === "that makes sense" ||
+        lower.includes("i will try") ||
+        lower.includes("i agree")
+      ) {
+        reply =
+          "That insight is a significant breakthrough. In CBT, the goal isn't just seeing the pattern, but practicing a balanced alternative thought. " +
+          "Let's put this into action: write down one sentence that summarizes a fairer, more compassionate perspective on this situation. " +
+          "What would that new statement look like?"
+      }
+      // Hesitation / Stuck
+      else if (
+        lower.includes("i don't know") ||
+        lower.includes("not sure") ||
+        lower.includes("hard to say") ||
+        lower.includes("maybe")
+      ) {
+        reply =
+          "It is completely okay not to have all the answers. Uncertainty itself can feel uncomfortable, but you don't need to resolve everything all at once. " +
+          "If we strip away all the 'what-ifs' and look only at today, what is the single smallest step you can take in the next hour to care for yourself?"
+      }
+      // Dynamic Socratic Clinician Reflection (Customized to user text)
+      else {
+        reply =
+          `I hear you reflecting on "${text.length > 60 ? text.slice(0, 60) + '...' : text}". ` +
+          "In our therapeutic exploration, every belief carries an underlying emotional core. " +
+          "When this thought comes up for you, what core emotion is beneath it — fear of failure, sadness, feeling unseen, or needing control? " +
+          "If we approached this situation with unconditional self-compassion, what would change?"
       }
 
       setMessages((prev) => [

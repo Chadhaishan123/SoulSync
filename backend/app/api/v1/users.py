@@ -274,10 +274,7 @@ def update_location(
     if not profile.location_enabled:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Location sharing is turned off. Enable it in your consent "
-                "settings before sending coordinates."
-            ),
+            detail="Location consent required. Enable location sharing in Settings before sending coordinates",
         )
 
     profile.last_latitude = payload.latitude

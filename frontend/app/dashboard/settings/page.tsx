@@ -148,8 +148,8 @@ export default function SettingsPage() {
         toast.dismiss("loc-prompt")
         try {
           const tz = timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-          await api.user.updateLocation(pos.coords.latitude, pos.coords.longitude, tz)
           await api.user.updateConsents({ location_enabled: true })
+          await api.user.updateLocation(pos.coords.latitude, pos.coords.longitude, tz)
           setLocationEnabled(true)
           toast.success("System location permission granted & updated! 📍")
           refreshUser()
