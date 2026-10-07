@@ -44,6 +44,8 @@ export default function CompanionPage() {
   const getCompanionFallback = (query: string, history: ChatMessage[] = []): string => {
     const q = query.toLowerCase().trim()
     const historyText = history.map((m) => m.content.toLowerCase()).join(" ")
+    const pastReplies = history.filter((m) => m.role === "assistant").map((m) => m.content.toLowerCase())
+    const isAlreadySent = (str: string) => pastReplies.some((p) => p.includes(str.slice(0, 40).toLowerCase()))
 
     // Emotion detection
     const isFrustrated = q.includes("tried") || q.includes("doesn't work") || q.includes("doesnt work") || q.includes("hate") || q.includes("stuck") || q.includes("pointless")
@@ -65,55 +67,68 @@ export default function CompanionPage() {
       topic = "relationships"
     }
 
+    let reply = ""
+
     if (isFrustrated) {
-      return "I hear your frustration completely. When you're already carrying so much mental fatigue, standard advice can feel hollow. You don't have to force yourself to do anything right now. If we set all expectations aside, what would bring you even 1% relief in this moment?"
-    }
-
-    if (isExhausted) {
-      return "I can sense how completely drained you are. Please treat today as an intentional rest day. Give your body and mind permission to stop pushing. Can you step away from screens for a little while and let yourself rest?"
-    }
-
-    if (isCurious) {
+      reply = "I hear your frustration completely. When you're already carrying so much mental fatigue, standard advice can feel hollow. You don't have to force yourself to do anything right now. If we set all expectations aside, what would bring you even 1% relief in this moment?"
+    } else if (isExhausted) {
+      reply = "I can sense how completely drained you are. Please treat today as an intentional rest day. Give your body and mind permission to stop pushing. Can you step away from screens for a little while and let yourself rest?"
+    } else if (isCurious) {
       if (topic === "sleep") {
-        return "When our circadian rhythms are disrupted, the emotional center of our brain (the amygdala) becomes significantly more reactive. That's why everyday stressors feel so amplified when we're sleep-deprived. Would you like to explore gentle wind-down routines or sleep environment resets?"
+        reply = "When our circadian rhythms are disrupted, the emotional center of our brain (the amygdala) becomes significantly more reactive. That's why everyday stressors feel so amplified when we're sleep-deprived. Would you like to explore gentle wind-down routines or sleep environment resets?"
+      } else if (topic === "work") {
+        reply = "Every time we switch between tasks or worry about unfinished work, our brain retains 'attentional residue'. That cognitive friction quickly depletes executive energy. Taking 5-minute pauses between focused sprints prevents burnout before it starts."
+      } else {
+        reply = "Our mind and body are in constant feedback. When thoughts anticipate tension, physical muscles tighten and pulse rates rise, signaling back to the brain that danger is present. Conscious breathing interrupts that feedback loop."
       }
-      if (topic === "work") {
-        return "Every time we switch between tasks or worry about unfinished work, our brain retains 'attentional residue'. That cognitive friction quickly depletes executive energy. Taking 5-minute pauses between focused sprints prevents burnout before it starts."
-      }
-      return "Our mind and body are in constant feedback. When thoughts anticipate tension, physical muscles tighten and pulse rates rise, signaling back to the brain that danger is present. Conscious breathing interrupts that feedback loop."
-    }
-
-    if (isReceptive && history.length > 0) {
+    } else if (isReceptive && history.length > 0) {
       if (topic === "sleep") {
-        return "That's wonderful. Let's make that your gentle intention for tonight: dim lights 30 minutes before bed and set your phone aside. I'm cheering for you to have a restorative night!"
+        reply = "That's wonderful. Let's make that your gentle intention for tonight: dim lights 30 minutes before bed and set your phone aside. I'm cheering for you to have a restorative night!"
+      } else if (topic === "work") {
+        reply = "Taking that pause is a huge victory for your focus. Give yourself permission to tackle one micro-step at a time. What is the single next task you're approaching with a calmer mind?"
+      } else if (topic === "anxiety") {
+        reply = "Notice the slight release in your chest when you give yourself permission to pause. Even three deep belly breaths make a measurable difference. Would you like to try another grounding breath?"
+      } else {
+        reply = "That awareness is meaningful progress. Taking small, consistent steps is what builds lasting calm. What feels like the kindest next step for you today?"
       }
-      if (topic === "work") {
-        return "Taking that pause is a huge victory for your focus. Give yourself permission to tackle one micro-step at a time. What is the single next task you're approaching with a calmer mind?"
+    } else if (q.includes("hi") || q.includes("hello") || q.includes("hey")) {
+      reply = "Hello! I'm right here with you. How is your day treating you so far? Tell me what's on your mind."
+    } else if (topic === "anxiety") {
+      if (isAlreadySent("Let's take a slow 4-7-8 breath")) {
+        reply = "Try this grounding check right now: look around and spot 3 green or blue objects, feel the temperature of the air on your hands, and let your jaw unclench. You are safe in this physical moment."
+      } else {
+        reply = "Let's take a slow 4-7-8 breath together right now: Inhale gently for 4 counts... Hold softly for 7... Exhale slowly through your mouth for 8. Feel your shoulders drop. What is making you feel anxious?"
       }
-      if (topic === "anxiety") {
-        return "Notice the slight release in your chest when you give yourself permission to pause. Even three deep belly breaths make a measurable difference. Would you like to try another grounding breath?"
+    } else if (topic === "sadness") {
+      if (isAlreadySent("I hear how heavy things feel")) {
+        reply = "You don't need to explain or justify your sadness to anyone today. Sometimes the most healing thing is simply curling up with warmth and allowing yourself to rest without guilt."
+      } else {
+        reply = "I hear how heavy things feel right now, and I want you to know it's completely okay to feel sad. You don't have to carry it all by yourself. What's weighing on you today?"
       }
-      return "That awareness is meaningful progress. Taking small, consistent steps is what builds lasting calm. What feels like the kindest next step for you today?"
+    } else if (topic === "sleep") {
+      if (q.includes("wake") || q.includes("3am") || q.includes("4am") || q.includes("middle")) {
+        reply = "Waking up in the night often comes from a blood sugar dip or sudden adrenaline surge. Do NOT look at your clock or phone. Keep your eyes closed, breathe deeply, and tell your brain: 'Resting quietly is still restoring my energy.' If awake after 20 minutes, sit in dim light with a book until you feel drowsy."
+      } else if (isAlreadySent("Sleep is foundational")) {
+        reply = "For tonight's wind-down, keep the room cool (~18-19°C), dim your bedroom lighting 45 minutes before sleep, and try doing a 3-minute brain dump on physical paper to unburden your mind."
+      } else {
+        reply = "Sleep is foundational for mental recovery. If your mind is racing in bed, try journaling your thoughts onto paper or listening to calming brown noise. What is keeping you awake?"
+      }
+    } else if (topic === "work") {
+      if (q.includes("deadline") || q.includes("exam") || q.includes("boss") || q.includes("tomorrow")) {
+        reply = "When deadlines loom, the brain enters freeze mode because the whole mountain seems impossible. Shrink it down: what is one 2-minute micro-action you can take right now? Just opening the tab or writing one heading breaks the freeze."
+      } else if (isAlreadySent("It sounds like you're carrying a lot of mental weight")) {
+        reply = "Remember: you are a human being, not an output machine. Your worth doesn't fluctuate with your productivity. What is one non-essential task you can give yourself permission to ignore today?"
+      } else {
+        reply = "It sounds like you're carrying a lot of mental weight. Remember that rest is essential fuel, not something you have to earn. Can you give yourself a 10-minute break away from screens?"
+      }
     }
 
-    if (q.includes("hi") || q.includes("hello") || q.includes("hey")) {
-      return "Hello! I'm right here with you. How is your day treating you so far? Tell me what's on your mind."
-    }
-    if (topic === "anxiety" && (q.includes("anxious") || q.includes("panic") || q.includes("breathe"))) {
-      return "Let's take a slow 4-7-8 breath together right now: Inhale gently for 4 counts... Hold softly for 7... Exhale slowly through your mouth for 8. Feel your shoulders drop. What is making you feel anxious?"
-    }
-    if (topic === "sadness" && (q.includes("sad") || q.includes("cry") || q.includes("depress"))) {
-      return "I hear how heavy things feel right now, and I want you to know it's completely okay to feel sad. You don't have to carry it all by yourself. What's weighing on you today?"
-    }
-    if (topic === "sleep" && (q.includes("sleep") || q.includes("insomnia") || q.includes("bed"))) {
-      return "Sleep is foundational for mental recovery. If your mind is racing in bed, try journaling your thoughts onto paper or listening to calming brown noise. What is keeping you awake?"
-    }
-    if (topic === "work" && (q.includes("work") || q.includes("study") || q.includes("burnout"))) {
-      return "It sounds like you're carrying a lot of mental weight. Remember that rest is essential fuel, not something you have to earn. Can you give yourself a 10-minute break away from screens?"
+    if (!reply || isAlreadySent(reply)) {
+      const snippet = query.length > 55 ? query.slice(0, 52) + "..." : query
+      reply = `Thank you for sharing that — "${snippet}". Looking at your present moment, what is one small thing right now that would bring you a sense of grounded comfort?`
     }
 
-    const snippet = query.length > 60 ? query.slice(0, 57) + "..." : query
-    return `Thank you for sharing that with me. Reflecting on "${snippet}" shows genuine mindfulness. How does that feel in your body right now, and what kind of support feels most helpful in this moment?`
+    return reply
   }
 
   const handleSend = async (textToSend?: string) => {

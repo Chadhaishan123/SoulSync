@@ -107,63 +107,142 @@ def generate_response(
                 "Hey there! I'm here to listen, support, and help you reflect. What's on your mind right now?",
                 "Welcome! Whether you want to talk through a challenge, try a calming exercise, or simply chat, I'm right here with you. How are you feeling today?"
             ]
-        reply = random.choice(greetings)
+    past_replies = [
+        (getattr(m, "content", "") if not isinstance(m, dict) else m.get("content", "")).lower()
+        for m in history_items
+        if (getattr(m, "role", "") if not isinstance(m, dict) else m.get("role", "")) in ["assistant", "therapist"]
+    ]
+
+    def is_already_sent(snippet: str) -> bool:
+        norm = snippet.strip().lower()[:45]
+        return any(norm in p for p in past_replies)
+
+    # 1. Greetings
+    if clean_msg in [
+        "hi", "hello", "hey", "hola", "sup", "good morning", "good afternoon",
+        "good evening", "greetings", "howdy"
+    ] or any(msg_lower.startswith(w) for w in ["hi ", "hello ", "hey "]):
+        if latest_mood is not None:
+            greetings = [
+                f"Hello! It's so nice to hear from you. Your latest check-in showed a mood of {latest_mood}/10 ({latest_emotion}). How has today been treating your mind and body?",
+                f"Hey there! I'm glad you stopped by to check in. I'm holding space for you today. What's on your mind right now?",
+                f"Good to see you! Based on your recent entries, you've been averaging a {avg_mood}/10 mood. How are you feeling in this exact moment?"
+            ]
+        else:
+            greetings = [
+                "Hello! It's great to connect with you. I'm your SoulSync AI Companion. How is your day going so far?",
+                "Hey there! I'm here to listen, support, and help you reflect. What's on your mind right now?",
+                "Welcome! Whether you want to talk through a challenge, try a calming exercise, or simply chat, I'm right here with you. How are you feeling today?"
+            ]
+        reply = random.choice([g for g in greetings if not is_already_sent(g)] or greetings)
 
     # 2. Breathing / Guided Meditation
     elif any(w in msg_lower for w in ["breathe", "breathing", "meditat", "grounding", "relax me", "calm down", "guide me"]):
-        reply = (
-            "Let's pause and reset together right now with a 4-7-8 calming breath:\n\n"
-            "1. **Inhale** gently through your nose for **4 seconds**...\n"
-            "2. **Hold** that gentle breath softly for **7 seconds**...\n"
-            "3. **Exhale** slowly through your mouth for **8 seconds**...\n\n"
-            "Drop your shoulders, unclench your jaw, and take two more slow cycles. "
-            "How does your chest and head feel after doing that?"
-        )
+        if is_already_sent("Let's pause and reset together"):
+            reply = (
+                "Let's switch to Box Breathing (4x4 regulation) for nervous system balance:\n\n"
+                "1. **Inhale** slowly for **4 seconds**...\n"
+                "2. **Hold** your breath gently for **4 seconds**...\n"
+                "3. **Exhale** smoothly for **4 seconds**...\n"
+                "4. **Hold empty** softly for **4 seconds**.\n\n"
+                "Repeat that once more. Notice how your body settles into a steady, calm rhythm."
+            )
+        else:
+            reply = (
+                "Let's pause and reset together right now with a 4-7-8 calming breath:\n\n"
+                "1. **Inhale** gently through your nose for **4 seconds**...\n"
+                "2. **Hold** that gentle breath softly for **7 seconds**...\n"
+                "3. **Exhale** slowly through your mouth for **8 seconds**...\n\n"
+                "Drop your shoulders, unclench your jaw, and take two more slow cycles. "
+                "How does your chest and head feel after doing that?"
+            )
 
     # 3. Sadness / Grief / Crying / Heartbreak
     elif any(w in msg_lower for w in ["sad", "depress", "crying", "cry", "heartbreak", "hurting", "lost", "grief", "hopeless", "down", "terrible", "bad day"]):
-        reply = (
-            f"I hear how heavy things feel right now, and I want to validate that it is completely okay to feel sad. "
-            f"You don't have to force yourself to be cheerful. In your check-in history, you noted feeling {latest_emotion.lower()} recently.\n\n"
-            "Give yourself permission to take it slow today. Drink a sip of water, wrap yourself in warmth, and let yourself rest. "
-            "Would you like to write down what's weighing on you, or would you prefer a quiet somatic exercise?"
-        )
+        if is_already_sent("I hear how heavy things feel right now"):
+            reply = (
+                "I am right here with you. You don't need to explain or justify your sadness. "
+                "Sometimes simply allowing yourself to feel low without fighting it is the most compassionate thing you can do. "
+                "What is one small comfort you can give yourself right now — a warm drink, a blanket, or resting your eyes?"
+            )
+        else:
+            reply = (
+                f"I hear how heavy things feel right now, and I want to validate that it is completely okay to feel sad. "
+                f"You don't have to force yourself to be cheerful. In your check-in history, you noted feeling {latest_emotion.lower()} recently.\n\n"
+                "Give yourself permission to take it slow today. Drink a sip of water, wrap yourself in warmth, and let yourself rest. "
+                "Would you like to write down what's weighing on you, or would you prefer a quiet somatic exercise?"
+            )
 
     # 4. Conflict / Relationships / Arguments
     elif any(w in msg_lower for w in ["fight", "argued", "argument", "friend", "partner", "boyfriend", "girlfriend", "breakup", "relationship", "family", "parents"]):
-        reply = (
-            "Interpersonal conflict can cause an intense physical and emotional spike in our nervous system. "
-            "When we have a confrontation with someone close to us, our brain often perceives it as a threat to our safety.\n\n"
-            "Before reacting or over-analyzing what happened, try to take a step back. "
-            "Remember: what the other person did reflects their emotional state, not your entire worth. "
-            "Would you like to draft a calm response together, or unpack how the interaction made you feel?"
-        )
+        if is_already_sent("Interpersonal conflict can cause"):
+            reply = (
+                "Stepping back from interpersonal friction: remember that when someone acts defensively or harshly, "
+                "it reveals where their own emotional limits lie, not where your worth ends. "
+                "What boundary or personal space would protect your energy in this dynamic right now?"
+            )
+        else:
+            reply = (
+                "Interpersonal conflict can cause an intense physical and emotional spike in our nervous system. "
+                "When we have a confrontation with someone close to us, our brain often perceives it as a threat to our safety.\n\n"
+                "Before reacting or over-analyzing what happened, try to take a step back. "
+                "Remember: what the other person did reflects their emotional state, not your entire worth. "
+                "Would you like to draft a calm response together, or unpack how the interaction made you feel?"
+            )
 
     # 5. Overthinking / Anxiety / Worry / Panic
     elif any(w in msg_lower for w in ["overthink", "anxious", "anxiety", "panic", "worry", "scared", "nervous", "spiral"]):
-        reply = (
-            "When overthinking starts spiraling, our thoughts try to solve problems that haven't even happened yet. "
-            "Let's anchor into the 5-4-3-2-1 grounding technique right now:\n\n"
-            "• Name **5 things** you can see in your room.\n"
-            "• Feel **4 textures** (your clothes, desk, phone).\n"
-            "• Notice **3 sounds** in the background.\n"
-            "• Identify **2 scents** around you.\n"
-            "• Acknowledge **1 thing** you are safe from right now.\n\n"
-            "Your mind is trying to protect you, but you are here in the present. What is the single biggest worry on your mind?"
-        )
+        if is_already_sent("When overthinking starts spiraling"):
+            reply = (
+                "When worries repeat themselves in loops, practice 'Leaves on a Stream': "
+                "picture sitting by a slow-moving forest river. Every anxious thought is placed onto a gentle fallen leaf and allowed to float downstream. "
+                "You don't have to push the leaf away or jump into the water after it — just watch it pass. What thought just floated by?"
+            )
+        else:
+            reply = (
+                "When overthinking starts spiraling, our thoughts try to solve problems that haven't even happened yet. "
+                "Let's anchor into the 5-4-3-2-1 grounding technique right now:\n\n"
+                "• Name **5 things** you can see in your room.\n"
+                "• Feel **4 textures** (your clothes, desk, phone).\n"
+                "• Notice **3 sounds** in the background.\n"
+                "• Identify **2 scents** around you.\n"
+                "• Acknowledge **1 thing** you are safe from right now.\n\n"
+                "Your mind is trying to protect you, but you are here in the present. What is the single biggest worry on your mind?"
+            )
 
     # 6. Burnout / Work / Study / Exams / Exhaustion
     elif any(w in msg_lower for w in ["work", "job", "boss", "exam", "college", "school", "study", "deadline", "burnout", "tired", "exhausted", "drained"]):
-        reply = (
-            f"It sounds like your energy reserves are running near empty. Your recent energy scores averaged around "
-            f"{round(sum(e.energy_level for e in entries if e.energy_level is not None) / max(1, len(entries)), 1)}/10.\n\n"
-            "Remember that rest is not a reward you earn after working yourself to exhaustion — rest is an essential biological requirement. "
-            "Can you step away from screens for just 10 minutes to close your eyes, or take a short walk to reset your attention?"
-        )
+        if is_already_sent("It sounds like your energy reserves"):
+            reply = (
+                "Looking closer at your workload: avoidance and exhaustion usually mean the current task feels too large and intimidating. "
+                "Let's break it down: what is the single next micro-step that would take less than 2 minutes to complete? "
+                "Shrink the task down until your brain no longer feels resistant."
+            )
+        else:
+            reply = (
+                f"It sounds like your energy reserves are running near empty. Your recent energy scores averaged around "
+                f"{round(sum(e.energy_level for e in entries if e.energy_level is not None) / max(1, len(entries)), 1)}/10.\n\n"
+                "Remember that rest is not a reward you earn after working yourself to exhaustion — rest is an essential biological requirement. "
+                "Can you step away from screens for just 10 minutes to close your eyes, or take a short walk to reset your attention?"
+            )
 
     # 7. Sleep / Insomnia
-    elif any(w in msg_lower for w in ["sleep", "rest", "insomnia", "can't sleep", "cant sleep", "awake", "nightmare"]):
-        reply = _sleep_response(entries)
+    elif any(w in msg_lower for w in ["sleep", "rest", "insomnia", "can't sleep", "cant sleep", "awake", "nightmare", "wake"]):
+        if any(w in msg_lower for w in ["wake", "3am", "4am", "middle"]):
+            reply = (
+                "Waking up in the middle of the night is very common when cortisol spikes or blood sugar dips. "
+                "Crucial tip: do NOT look at your clock or phone. Looking at the clock immediately triggers cognitive arousal. "
+                "Keep your eyes closed, breathe deeply, and tell your brain: 'Resting quietly is still restoring my energy.' "
+                "If awake after 20 minutes, sit in dim light with a book until you feel drowsy."
+            )
+        elif is_already_sent("sleep") or is_already_sent("insomnia"):
+            reply = (
+                "For deeper sleep recovery, try a 3-minute 'Brain Dump' on paper before bed to unload pending thoughts. "
+                "Keep your room cool (~18-19°C) and dim. Melatonin requires darkness and a drop in body temperature to release. "
+                "What is keeping you awake most tonight?"
+            )
+        else:
+            reply = _sleep_response(entries)
 
     # 8. Affirmative prompts & follow-ups with contextual memory
     elif clean_msg in ["yes", "sure", "ok", "okay", "yeah", "yep", "please", "yes please", "tell me", "explore", "go ahead", "right", "i agree", "will do"]:
@@ -254,7 +333,7 @@ def generate_response(
     elif any(w in msg_lower for w in ["grateful", "thankful", "positive"]):
         reply = _gratitude_response(entries, avg_mood)
 
-    # 19. Context-aware synthesis (Grounds on active topic and user snippet)
+    # 19. Context-aware synthesis
     else:
         snippet = user_message.strip().rstrip("!?.")
         if len(snippet) > 65:
@@ -277,6 +356,16 @@ def generate_response(
                 f"Thank you for sharing that with me. When you bring up '{snippet}', I hear how meaningful this is to your current headspace. "
                 f"Take a gentle breath with me right now. What would feel like the most restorative step forward for you today?"
             )
+
+    # Strict Anti-Loop Deduplication Guarantee
+    if is_already_sent(reply) or not reply.strip():
+        snippet = user_message.strip().rstrip("!?.")
+        if len(snippet) > 60:
+            snippet = snippet[:57] + "..."
+        reply = (
+            f"Hearing what you just said about '{snippet}': I want to make sure we don't repeat earlier points. "
+            f"Looking at this exact moment in your day, what is one small thing that would bring you a sense of grounded relief?"
+        )
 
     # Add elevated safety resources if needed
     if safety["level"] == "elevated":

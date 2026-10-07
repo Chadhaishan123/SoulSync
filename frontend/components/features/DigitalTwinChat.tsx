@@ -119,46 +119,76 @@ function getDynamicTwinReply(
     }
   }
 
+  const pastReplies = history.filter((h) => h.role === "assistant").map((h) => h.content.toLowerCase())
+  const isAlreadySent = (str: string) => pastReplies.some((p) => p.includes(str.slice(0, 40).toLowerCase()))
+
+  let resultReply = ""
+  let resultInsights = [...insights]
+
   if (topic === "sleep") {
-    return {
-      reply: `Checking our sleep vectors for the '${currentPattern}' archetype: our next-day emotional stability increases by +1.4 points when sleep duration exceeds 7.5 hours. Conversely, sub-6-hour nights directly correlate with elevated morning tension and cortisol spikes. Protecting our circadian wind-down between 11 PM and 7 AM remains our highest-ROI habit.`,
-      insights: [...insights, "Sleep > 7.5h -> +1.4 Mood boost"],
+    if (q.includes("wake") || q.includes("3am") || q.includes("4am") || q.includes("night")) {
+      resultReply = `Waking up in the middle of the night (especially 2 AM - 4 AM) often corresponds to a premature cortisol spike or core temperature fluctuation. For our '${currentPattern}' profile, avoid looking at the clock — checking the time triggers mental calculations and anxiety. Keep eyes closed, take 5 slow belly breaths, and remember that resting in bed still recharges your system. If awake for >20 mins, move to dim light until drowsy.`
+      resultInsights.push("Middle-of-night arousal protocol")
+    } else if (q.includes("fall asleep") || q.includes("racing") || q.includes("bed")) {
+      resultReply = `Difficulty falling asleep indicates active attentional residue. Spend 3 minutes doing a 'Brain Dump' on physical paper to externalize your to-do list so your prefrontal cortex can release control. Also keep your bedroom around 18-19°C — cooling the room signals melatonin release in our '${currentPattern}' twin.`
+      resultInsights.push("Pre-sleep cognitive offload")
+    } else if (isAlreadySent("Checking our sleep vectors")) {
+      resultReply = `Continuing our sleep optimization for the '${currentPattern}' archetype: our next high-leverage action is a 'Digital Sunset' — putting your phone away 40 minutes before bed and swapping screen time for gentle stretching or audio. Would you be willing to test this tonight?`
+      resultInsights.push("Digital Sunset protocol")
+    } else {
+      resultReply = `Checking our sleep vectors for the '${currentPattern}' archetype: our next-day emotional stability increases by +1.4 points when sleep duration exceeds 7.5 hours. Conversely, sub-6-hour nights directly correlate with morning tension. Does your biggest challenge lie in falling asleep, or in staying asleep?`
+      resultInsights.push("Sleep > 7.5h -> +1.4 Mood boost")
+    }
+  } else if (topic === "stress") {
+    if (q.includes("chest") || q.includes("heart") || q.includes("breath") || q.includes("panic")) {
+      resultReply = `When stress triggers tightness in your chest or rapid breathing, logic won't calm your nervous system. Let's do the physiological sigh right now: two quick inhales through your nose, followed by a long, slow exhale through your mouth. Repeat 3 times. Notice where your shoulders drop.`
+      resultInsights.push("Physiological Sigh reset")
+    } else if (isAlreadySent("Across our")) {
+      resultReply = `Deepening our stress analysis for the '${currentPattern}' profile: when mental pressure lingers, our brain treats every task as urgent. Let's divide today's workload into what is truly in your control versus what is external noise. What is the single most urgent task on your plate?`
+      resultInsights.push("Controllability triage")
+    } else {
+      resultReply = `Across our ${totalDays} check-in vectors, stress spikes cluster around continuous uninterrupted screen work. Stepping away for a 10-minute walk or 4-7-8 breathing drops acute tension by over 25%. What is the main source of the tension right now?`
+      resultInsights.push("10-min movement -> 25% tension drop")
+    }
+  } else if (topic === "work") {
+    if (q.includes("deadline") || q.includes("boss") || q.includes("exam") || q.includes("tomorrow")) {
+      resultReply = `Approaching heavy workplace or academic deadlines triggers survival-mode freezing. For the '${currentPattern}' archetype, shrinking the immediate scope is key: identify the single next micro-step that takes less than 3 minutes (like opening one document or writing one line). Action dissolves dread.`
+      resultInsights.push("Micro-action momentum")
+    } else if (isAlreadySent("Our focus under")) {
+      resultReply = `Continuing from our work vectors: avoidance is almost always emotional, not a sign of laziness. Giving yourself permission to do an imperfect first pass breaks the perfectionism trap. What project is causing the most avoidance right now?`
+      resultInsights.push("Perfectionism de-escalation")
+    } else {
+      resultReply = `Our focus under the '${currentPattern}' archetype works best in 25-minute Pomodoro bursts with clear stopping points. Trying to force multi-hour marathons causes mental friction and task avoidance. Pick just ONE small micro-task and start for 5 minutes without pressure.`
+      resultInsights.push("Strategy: 25-min micro-sprints")
+    }
+  } else if (topic === "relationships") {
+    if (isAlreadySent("Interpersonal tension")) {
+      resultReply = `Expanding on our relational vectors: when someone close to us acts in a hurt or stressed manner, it triggers our alarm bells. But their mood is their responsibility, not your report card. What boundary would give you the most relief today?`
+      resultInsights.push("Relational Boundaries")
+    } else {
+      resultReply = `Interpersonal tension has the fastest, most direct impact on our autonomic nervous system. When conflict arises, our brain interprets it as a threat to belonging. Remember that the other person's reaction is shaped by their own stress filters, not a definition of your worth. Would you like to draft a calm response together?`
+      resultInsights.push("Relational Decentering")
+    }
+  } else if (topic === "sadness") {
+    if (isAlreadySent("I feel that dip")) {
+      resultReply = `Holding this space with you: low-energy days are biological signals that our system is recalibrating. You don't have to force cheerfulness. What is one small comfort you can give yourself in this next hour?`
+      resultInsights.push("Gentle Pacing")
+    } else {
+      resultReply = `I feel that dip with you. In our '${currentPattern}' cycle, low-energy days are biological signals that our nervous system needs gentle restoration, not harsh self-criticism. Let's take pressure off today: hydrate, bundle up in warmth, and let yourself rest. What feels like the heaviest burden right now?`
+      resultInsights.push("State: Compassionate rest required")
     }
   }
 
-  if (topic === "stress") {
-    return {
-      reply: `Across our ${totalDays} check-in vectors, stress spikes cluster around continuous uninterrupted screen work. Our behavioral twin demonstrates that stepping away for a 10-minute walk or doing 3 cycles of 4-7-8 breathing drops acute tension by over 25%. What is the main source of the tension right now?`,
-      insights: [...insights, "10-min movement -> 25% tension drop"],
-    }
+  // Deduplication check
+  if (!resultReply || isAlreadySent(resultReply)) {
+    const cleanedQuery = query.length > 55 ? query.slice(0, 52) + "..." : query
+    resultReply = `Reflecting on "${cleanedQuery}": as your Digital Twin in the '${currentPattern}' state, I perceive your ${emotion.toLowerCase()} energy. Rather than repeating earlier points, let's look forward: what is the single kindest, most grounding thing you can do for yourself in the next hour?`
+    resultInsights.push("Dynamic Vector Grounding")
   }
 
-  if (topic === "work") {
-    return {
-      reply: `Our focus under the '${currentPattern}' archetype works best in 25-minute Pomodoro bursts with clear stopping points. Trying to force multi-hour marathons causes mental friction and task avoidance. Pick just ONE small micro-task and start for 5 minutes without pressure.`,
-      insights: [...insights, "Strategy: 25-min micro-sprints"],
-    }
-  }
-
-  if (topic === "relationships") {
-    return {
-      reply: `Interpersonal tension has the fastest, most direct impact on our autonomic nervous system. When conflict arises, our brain interprets it as a threat to belonging. Remember that the other person's reaction is shaped by their own stress filters, not a definition of your worth. Would you like to draft a calm response together?`,
-      insights: [...insights, "Relational Decentering"],
-    }
-  }
-
-  if (topic === "sadness") {
-    return {
-      reply: `I feel that dip with you. In our '${currentPattern}' cycle, low-energy days are biological signals that our nervous system needs gentle restoration, not harsh self-criticism. Let's take pressure off today: hydrate, bundle up in warmth, and let yourself rest. What feels like the heaviest burden right now?`,
-      insights: [...insights, "State: Compassionate rest required"],
-    }
-  }
-
-  // Dynamic Adaptive Fallback (No repetitive template!)
-  const cleanedQuery = query.length > 60 ? query.slice(0, 60) + "..." : query
   return {
-    reply: `Hearing your reflection on "${cleanedQuery}": as your Digital Twin in the '${currentPattern}' state, I perceive the ${emotion.toLowerCase()} undertone in what you're experiencing. In our wellness vectors, tuning into how this thought affects your body tension is the fastest route to clarity. What feels like the most supportive thing for you right now?`,
-    insights: [...insights, "Dynamic Vector Grounding"],
+    reply: resultReply,
+    insights: resultInsights,
   }
 }
 

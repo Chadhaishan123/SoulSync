@@ -293,7 +293,14 @@ def chat_with_digital_twin(
     insights = [f"Archetype: {pattern}", f"Emotional Tone: {detected_emotion}"]
     reply = ""
 
-    # 1. Greetings (Single or early turn)
+    past_replies = [h.content.lower() for h in history if getattr(h, "role", "") in ["assistant", "twin"]]
+    past_text = " ".join(past_replies)
+
+    def is_already_sent(text_snippet: str) -> bool:
+        norm = text_snippet.strip().lower()[:45]
+        return any(norm in p for p in past_replies)
+
+    # 1. Greetings (Early turn only)
     if (len(history) <= 1 and (query in ["hi", "hello", "hey", "sup", "greetings", "good morning", "good evening", "good afternoon"] or any(query.startswith(w) for w in ["hi ", "hello ", "hey "]))):
         if entries and latest:
             reply = (
@@ -308,7 +315,7 @@ def chat_with_digital_twin(
                 f"How are you feeling in your mind and body today?"
             )
 
-    # 2. User expresses frustration or resistance ("that didn't work", "it's impossible", etc.)
+    # 2. User expresses frustration or resistance
     elif detected_emotion == "Frustration / Resistance":
         if active_topic == "sleep":
             insights.append("Somatic sleep resistance identified")
@@ -332,7 +339,7 @@ def chat_with_digital_twin(
                 f"What feels like the biggest roadblock right now that standard advice seems to ignore?"
             )
 
-    # 3. Follow-up Inquiry / Curiosity ("why?", "what if?", "how?", "tell me more")
+    # 3. Follow-up Curiosity ("why?", "how?", "what if?")
     elif detected_emotion == "Curiosity / Inquiring" and len(history) >= 1:
         if active_topic == "sleep":
             insights.append("Circadian architecture exploration")
@@ -374,73 +381,145 @@ def chat_with_digital_twin(
             f"Is there anything on your plate today that you can safely postpone until you have more reserves?"
         )
 
-    # 5. Sleep & Rest
-    elif any(k in query for k in ["sleep", "tired", "rest", "insomnia", "bed", "wake", "night", "circadian"]):
-        if sleep_records:
-            avg_sleep = round(sum(s.duration_minutes for s in sleep_records) / (len(sleep_records) * 60), 1)
-            insights.append(f"Logged average sleep: {avg_sleep} hrs ({len(sleep_records)} nights)")
+    # 5. Sleep & Rest (Context-driven sub-topic resolution without loop)
+    elif active_topic == "sleep" or any(k in query for k in ["sleep", "tired", "rest", "insomnia", "bed", "wake", "night"]):
+        # Sub-topic: Waking up in the middle of the night
+        if any(w in query for w in ["wake", "waking", "3am", "4am", "middle of the night", "woke up"]):
+            insights.append("Middle-of-night arousal protocol")
             reply = (
-                f"Looking into our sleep architecture, we've logged an average of {avg_sleep} hours per night. "
-                f"When we achieve over 7.5 hours, our next-day mood score elevates by ~1.4 points. "
-                f"Conversely, our highest stress scores correlate directly with sub-6-hour sleep nights. "
-                f"How has your sleep quality felt over the past couple of nights?"
+                f"Waking up between 2 AM and 4 AM is typical of a premature cortisol spike or dropping blood sugar during sleep cycles. "
+                f"The cardinal rule for our '{pattern}' twin is: do NOT look at your clock or phone. Clock-watching instantly reactivates working memory. "
+                f"Keep your eyes closed, do 5 slow belly breaths with long exhales, and repeat: 'Even quiet resting restores my body.' "
+                f"If you remain wide awake after ~20 minutes, move to a dimly lit chair and read something boring until drowsy."
             )
+        # Sub-topic: Difficulty falling asleep / Racing mind in bed
+        elif any(w in query for w in ["fall asleep", "trouble falling", "takes long", "racing", "mind won't stop"]):
+            insights.append("Pre-sleep cognitive offloading")
+            reply = (
+                f"Difficulty falling asleep in our '{pattern}' profile usually indicates that your prefrontal cortex is holding unfiled tasks. "
+                f"Try a 3-minute 'Brain Dump' on physical paper before lying down — write down everything you need to do tomorrow so your brain can let go. "
+                f"Also ensure your bedroom is cool (~18-19°C); core temperature must drop by 1°C to trigger endogenous melatonin release."
+            )
+        # Sub-topic: Morning tiredness / grogginess
+        elif any(w in query for w in ["morning", "groggy", "unrefreshed", "hard to get up"]):
+            insights.append("Circadian anchor protocol")
+            reply = (
+                f"Morning grogginess (sleep inertia) happens when your alarm interrupts deep slow-wave sleep. "
+                f"To reset your twin biological clock: get 5–10 minutes of direct outdoor sunlight into your eyes right after waking, "
+                f"and drink 300ml of water before touching any screens. This immediately shuts down residual melatonin and kicks off your energy curve."
+            )
+        # If baseline already sent, provide next-step experimental challenge
+        elif is_already_sent("Looking into our sleep architecture") or is_already_sent("circadian correlation modeling"):
+            insights.append("Sleep protocol personalization")
+            reply = (
+                f"Building on our sleep baseline for '{pattern}': the single highest-leverage habit we can test tonight is "
+                f"establishing a 'Digital Sunset' — putting all phone screens on grayscale or charging your phone outside arms-reach 45 minutes before sleep. "
+                f"Would you be open to testing this for just tonight and seeing how our morning check-in vector changes?"
+            )
+        # First turn sleep baseline
         else:
-            insights.append("Circadian correlation modeling")
-            reply = (
-                f"We haven't accumulated a large baseline of sleep stopwatch records yet, but our behavioral twin profile '{pattern}' "
-                f"shows that our emotional resilience depends strongly on consistent circadian timing. "
-                f"Try turning on the Live Sleep Tracker when you go to bed tonight, and keep your bedroom cool and dim."
-            )
+            if sleep_records:
+                avg_sleep = round(sum(s.duration_minutes for s in sleep_records) / (len(sleep_records) * 60), 1)
+                insights.append(f"Logged average sleep: {avg_sleep} hrs ({len(sleep_records)} nights)")
+                reply = (
+                    f"Looking into our sleep architecture, we've logged an average of {avg_sleep} hours per night. "
+                    f"When we achieve over 7.5 hours, our next-day mood score elevates by ~1.4 points. "
+                    f"Conversely, our highest stress scores correlate directly with sub-6-hour sleep nights. "
+                    f"What specific part of your sleep feels most challenging right now — falling asleep, staying asleep, or waking up refreshed?"
+                )
+            else:
+                insights.append("Circadian correlation modeling")
+                reply = (
+                    f"We haven't accumulated a large baseline of sleep stopwatch records yet, but our behavioral twin profile '{pattern}' "
+                    f"shows that our emotional resilience depends strongly on consistent circadian timing. "
+                    f"Tell me: do you struggle more with falling asleep at night, or waking up feeling unrefreshed in the morning?"
+                )
 
-    # 6. Stress, Anxiety & Overwhelm
-    elif any(k in query for k in ["stress", "anxiety", "anxious", "overwhelm", "panic", "trigger", "nervous", "spiral"]):
-        high_stress = [e for e in entries if (e.stress_level or 0) >= 7]
-        insights.append(f"Analyzed stress vectors: {len(high_stress)} elevated sessions")
-        if high_stress:
-            emotions = [e.primary_emotion for e in high_stress if e.primary_emotion]
-            common_emotion = max(set(emotions), key=emotions.count) if emotions else "Anxious"
+    # 6. Stress, Anxiety & Overwhelm (Context-driven without loop)
+    elif active_topic == "stress" or any(k in query for k in ["stress", "anxiety", "anxious", "overwhelm", "panic", "trigger", "nervous"]):
+        if any(w in query for w in ["chest", "heart", "breath", "breathing", "tight", "panic", "shaking"]):
+            insights.append("Physiological sigh protocol")
             reply = (
-                f"Across our {total_days} check-in vectors, stress spikes clustered in {len(high_stress)} recorded sessions, "
-                f"most commonly manifesting as '{common_emotion}'. As your twin, I notice that taking a 10-minute "
-                f"somatic break or stepping outside consistently drops our reported stress by ~2 points within 24 hours. "
-                f"What is causing the tension right now?"
+                f"When acute stress triggers physical tension in your chest or heart, cognitive logic won't reach your brain stem. "
+                f"Let's use the fastest physiological reset known: the double-inhale physiological sigh. "
+                f"Take two quick sniffs in through your nose (one deep, one top-off), then a long, slow sigh out through your mouth. "
+                f"Repeat that 3 times right now. How does that physical constriction shift?"
+            )
+        elif is_already_sent("stress spikes clustered") or is_already_sent("stress vectors have remained"):
+            insights.append("Cognitive stress desensitization")
+            reply = (
+                f"Deepening our stress investigation for the '{pattern}' archetype: when chronic tension persists, our brain starts treating "
+                f"ordinary notifications and responsibilities as existential emergencies. "
+                f"Let's identify the core pressure point: is this stress driven by external deadlines, or by internal expectations of perfection?"
             )
         else:
+            high_stress = [e for e in entries if (e.stress_level or 0) >= 7]
+            insights.append(f"Analyzed stress vectors: {len(high_stress)} elevated sessions")
             reply = (
-                f"Our stress vectors have remained relatively manageable in our baseline. "
-                f"Our active behavioral profile '{pattern}' indicates adaptive emotional coping so far. "
-                f"When acute stress appears, taking three slow 4-7-8 breaths immediately signals safety to our vagus nerve."
+                f"Across our {total_days} check-in vectors, stress spikes clustered in {len(high_stress)} recorded sessions. "
+                f"In our '{pattern}' profile, our nervous system responds best when we break stress down into what is directly controllable versus what is noise. "
+                f"What is the single biggest stressor on your radar right now?"
             )
 
     # 7. Sadness, Low Mood, Depression
-    elif any(k in query for k in ["sad", "depress", "low", "down", "unhappy", "cry", "hopeless", "hurt", "empty", "heartbroken"]):
-        insights.append(f"Emotional baseline: {latest_emotion}")
-        reply = (
-            f"I hear how heavy things feel, and as your digital reflection, I feel that dip with you. "
-            f"In our wellness journey, our mood fluctuates naturally — a low period is not a personal failure, but our system asking for compassion and rest. "
-            f"Give yourself permission to slow down today. What is weighing most heavily on your mind right now?"
-        )
+    elif active_topic == "sadness" or any(k in query for k in ["sad", "depress", "low", "down", "unhappy", "cry", "hopeless", "hurt", "empty"]):
+        if is_already_sent("I hear how heavy things feel"):
+            insights.append("Compassionate pacing consolidation")
+            reply = (
+                f"Holding space for you as your digital twin: in our '{pattern}' cycle, emotional dips often signal deep cognitive exhaustion. "
+                f"You do not need to perform or be cheerful today. If you could give yourself permission to lower expectations to zero for the next few hours, "
+                f"what gentle comfort could you provide yourself right now?"
+            )
+        else:
+            insights.append(f"Emotional baseline: {latest_emotion}")
+            reply = (
+                f"I hear how heavy things feel, and as your digital reflection, I feel that dip with you. "
+                f"In our wellness journey, our mood fluctuates naturally — a low period is not a personal failure, but our system asking for compassion and rest. "
+                f"Give yourself permission to slow down today. What is weighing most heavily on your mind right now?"
+            )
 
-    # 8. Work, Study, Productivity, Burnout
-    elif any(k in query for k in ["work", "study", "job", "exam", "focus", "burnout", "procrastin", "productive", "career"]):
-        insights.append("Focus & cognitive load analysis")
-        reply = (
-            f"Our cognitive bandwidth is intimately tied to our emotional energy. When we push through exhaustion without restorative pauses, "
-            f"our twin pattern drifts toward cognitive fatigue and irritability. "
-            f"My recommendation: try 25-minute focused sprints followed by complete screen-free 5-minute pauses. "
-            f"Are you feeling overwhelmed by the sheer volume of tasks or by uncertainty about where to start?"
-        )
+    # 8. Work, Study, Productivity, Burnout (Context-driven without loop)
+    elif active_topic == "work" or any(k in query for k in ["work", "study", "job", "exam", "focus", "burnout", "procrastin", "productive", "career"]):
+        if any(w in query for w in ["deadline", "tomorrow", "exam", "boss", "manager", "meeting", "presentation"]):
+            insights.append("High-stakes demand de-escalation")
+            reply = (
+                f"Facing high-stakes workplace or academic pressure triggers our evolutionary fear of social rejection. "
+                f"In our '{pattern}' archetype, trying to solve the entire project in your head creates immediate freeze responses. "
+                f"Shrink the scope: what is the single next micro-action (e.g. drafting 2 bullet points or opening one document) that takes less than 3 minutes?"
+            )
+        elif is_already_sent("cognitive bandwidth is intimately tied") or is_already_sent("pomodoro"):
+            insights.append("Attentional boundary protocol")
+            reply = (
+                f"Continuing from our focus dynamics: the main leak in our productive stamina is 'anticipatory dread' — spending more energy "
+                f"dreading the task than actually doing it. "
+                f"What would happen if you gave yourself permission to do a 'bad first draft' just to get momentum going?"
+            )
+        else:
+            insights.append("Focus & cognitive load analysis")
+            reply = (
+                f"Our cognitive bandwidth is intimately tied to our emotional energy. When we push through exhaustion without restorative pauses, "
+                f"our twin pattern drifts toward cognitive fatigue and irritability. "
+                f"My recommendation: try 25-minute focused sprints followed by complete screen-free 5-minute pauses. "
+                f"Are you feeling overwhelmed by the sheer volume of tasks or by uncertainty about where to start?"
+            )
 
     # 9. Relationships, Conflict & Social connection
-    elif any(k in query for k in ["friend", "relationship", "partner", "fight", "argued", "lonely", "family", "alone", "social"]):
-        insights.append("Relational dynamics & social vector")
-        reply = (
-            f"Relational stress has the strongest immediate impact on our autonomic nervous system. "
-            f"When tension happens with someone important to us, our brain triggers an alarm response. "
-            f"Remember: other people's reactions are shaped by their own stress filters, not a definition of your worth. "
-            f"Would you like to explore a grounded way to communicate your boundary or feeling?"
-        )
+    elif active_topic == "relationships" or any(k in query for k in ["friend", "relationship", "partner", "fight", "argued", "lonely", "family", "alone", "social"]):
+        if is_already_sent("relational stress has the strongest"):
+            insights.append("Relational boundary enforcement")
+            reply = (
+                f"Expanding on our interpersonal vectors: when someone close to us causes friction, we often get caught in an exhausting cycle of mental rehearsal. "
+                f"Remember that your emotional stability cannot be contingent on their approval. "
+                f"What boundary would protect your peace in this dynamic?"
+            )
+        else:
+            insights.append("Relational dynamics & social vector")
+            reply = (
+                f"Relational stress has the strongest immediate impact on our autonomic nervous system. "
+                f"When tension happens with someone important to us, our brain triggers an alarm response. "
+                f"Remember: other people's reactions are shaped by their own stress filters, not a definition of your worth. "
+                f"Would you like to explore a grounded way to communicate your boundary or feeling?"
+            )
 
     # 10. Affirmation / Agreement in ongoing conversation
     elif detected_emotion == "Receptive / Engaged" and len(history) >= 1:
@@ -461,7 +540,7 @@ def chat_with_digital_twin(
                 f"What feels like the next natural step for you right now?"
             )
 
-    # 11. Dynamic Adaptive Synthesis (Contextual, emotionally grounded, never static)
+    # 11. Dynamic Adaptive Synthesis
     else:
         insights.append("Dynamic synthesized reflection")
         cleaned_snippet = raw_query.rstrip("?.!")
@@ -481,6 +560,18 @@ def chat_with_digital_twin(
                 f"Within our '{pattern}' behavioral archetype, recognizing these emotional undertones is what allows us to grow. "
                 f"When this thought arises, how does it affect your physical tension and focus?"
             )
+
+    # ── Strict Anti-Loop Deduplication Guarantee ──
+    if is_already_sent(reply) or not reply.strip():
+        clean_q = raw_query.strip().rstrip("!?.").replace('"', "'")
+        if len(clean_q) > 60:
+            clean_q = clean_q[:57] + "..."
+        reply = (
+            f"Looking closer at your point — '{clean_q}': as your Digital Twin in the '{pattern}' archetype, "
+            f"I hear how this connects with your underlying emotional state ({detected_emotion.lower()}). "
+            f"Rather than revisiting earlier thoughts, let's focus on the next immediate step: "
+            f"what is one small adjustment that would make the remainder of your day feel noticeably calmer?"
+        )
 
     return TwinChatResponse(
         reply=reply,
