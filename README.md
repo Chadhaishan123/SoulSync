@@ -81,3 +81,9 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ## 🛡️ Medical Disclaimer
 SoulSync is a wellness and self-reflection tracker. It does **not** substitute professional mental healthcare, clinical diagnostic services, or medical advice.
+
+---
+
+## 📄 License
+This project is licensed under the [MIT License](LICENSE) © 2026 Ishan Chadha.
+
