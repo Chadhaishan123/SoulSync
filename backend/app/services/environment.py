@@ -377,21 +377,35 @@ WEATHER_DAILY_FIELDS = (
 
 
 async def fetch_weather(lat: float, lon: float) -> Tuple[Dict[str, Any], int]:
-    return await _cached_json(
-        _coord_key("weather", lat, lon),
-        settings.ENV_CACHE_TTL_SECONDS,
-        settings.OPEN_METEO_WEATHER_URL,
-        {
-            "latitude": round(lat, 4),
-            "longitude": round(lon, 4),
-            "current": WEATHER_CURRENT_FIELDS,
-            "daily": WEATHER_DAILY_FIELDS,
-            # `auto` makes the daily buckets align with the user's local
-            # calendar days, so "today's sunrise" is today where they live.
-            "timezone": "auto",
-            "forecast_days": FORECAST_DAYS,
-        },
-    )
+    try:
+        return await _cached_json(
+            _coord_key("weather", lat, lon),
+            settings.ENV_CACHE_TTL_SECONDS,
+            settings.OPEN_METEO_WEATHER_URL,
+            {
+                "latitude": round(lat, 4),
+                "longitude": round(lon, 4),
+                "current": WEATHER_CURRENT_FIELDS,
+                "daily": WEATHER_DAILY_FIELDS,
+                # `auto` makes the daily buckets align with the user's local
+                # calendar days, so "today's sunrise" is today where they live.
+                "timezone": "auto",
+                "forecast_days": FORECAST_DAYS,
+            },
+        )
+    except Exception as exc:
+        log.warning("Full weather query failed: %s; trying lightweight current weather query", exc)
+        return await _cached_json(
+            _coord_key("weather_simple", lat, lon),
+            settings.ENV_CACHE_TTL_SECONDS,
+            settings.OPEN_METEO_WEATHER_URL,
+            {
+                "latitude": round(lat, 4),
+                "longitude": round(lon, 4),
+                "current": WEATHER_CURRENT_FIELDS,
+                "timezone": "auto",
+            },
+        )
 
 
 AIR_CURRENT_FIELDS = (

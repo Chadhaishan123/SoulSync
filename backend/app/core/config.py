@@ -90,7 +90,7 @@ class Settings(BaseSettings):
     BIGDATACLOUD_URL: str = (
         "https://api.bigdatacloud.net/data/reverse-geocode-client"
     )
-    UPSTREAM_TIMEOUT_SECONDS: float = 6.0
+    UPSTREAM_TIMEOUT_SECONDS: float = 15.0
 
     # How long a fetched reading may be reused for the same coordinates.
     # Not a way to serve stale data as fresh: every environment response

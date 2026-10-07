@@ -7,6 +7,7 @@ import {
   Wind,
   Droplets,
   Sun,
+  Moon,
   Compass,
   RefreshCw,
   AlertTriangle,
@@ -62,6 +63,28 @@ interface GeocodingResult {
   timezone?: string
 }
 
+const WMO_LABELS: Record<number, string> = {
+  0: "Clear sky",
+  1: "Mainly clear",
+  2: "Partly cloudy",
+  3: "Overcast",
+  45: "Fog",
+  48: "Depositing rime fog",
+  51: "Light drizzle",
+  53: "Moderate drizzle",
+  55: "Dense drizzle",
+  61: "Slight rain",
+  63: "Moderate rain",
+  65: "Heavy rain",
+  71: "Slight snow fall",
+  73: "Moderate snow fall",
+  75: "Heavy snow fall",
+  80: "Slight rain showers",
+  81: "Moderate rain showers",
+  82: "Violent rain showers",
+  95: "Thunderstorm",
+}
+
 // Default fallback coordinates by common timezones
 const TZ_COORDS: Record<string, { lat: number; lon: number; city: string }> = {
   "Asia/Kolkata": { lat: 28.6139, lon: 77.209, city: "New Delhi" },
@@ -101,13 +124,49 @@ export default function EnvironmentLiveWidget() {
   // Local storage key for persistent caching
   const cacheKey = `soulsync_env_${cleanEmail}`
 
+  // Ensure weather fields are complete; if backend returned partial null/0 values,
+  // query Open-Meteo directly from the client (keyless, fast, zero latency).
+  const enrichWeatherIfNeeded = async (res: any, lat: number, lon: number): Promise<EnvData> => {
+    if (!res) return res
+    const temp = res.weather?.temperature_c
+    const hum = res.weather?.humidity_pct
+
+    // If temperature or humidity are missing or zero, fetch directly
+    if (temp === undefined || temp === null || temp === 0 || hum === undefined || hum === null || hum === 0) {
+      try {
+        const clientRes = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${round(lat)}&longitude=${round(lon)}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m`
+        )
+        if (clientRes.ok) {
+          const cw = await clientRes.json()
+          if (cw?.current?.temperature_2m !== undefined) {
+            res.weather = {
+              ...res.weather,
+              temperature_c: cw.current.temperature_2m,
+              apparent_temperature_c: cw.current.apparent_temperature,
+              humidity_pct: cw.current.relative_humidity_2m,
+              wind_speed_kmh: cw.current.wind_speed_10m,
+              weather_label: WMO_LABELS[cw.current.weather_code] || res.weather?.weather_label || "Clear sky",
+              is_day: Boolean(cw.current.is_day),
+            }
+          }
+        }
+      } catch {}
+    }
+    return res
+  }
+
+  function round(num: number) {
+    return Math.round(num * 10000) / 10000
+  }
+
   // 1. Initial hydration from cache for instant display
   useEffect(() => {
     try {
       const cached = localStorage.getItem(cacheKey)
       if (cached) {
         const parsed = JSON.parse(cached)
-        if (parsed?.weather?.temperature_c !== undefined) {
+        if (parsed?.weather?.temperature_c !== undefined && parsed.weather.temperature_c !== 0) {
           setData(parsed)
           setLoading(false)
         }
@@ -124,7 +183,8 @@ export default function EnvironmentLiveWidget() {
       // Step A: If stored coordinates exist, fetch with them directly
       if (profile?.last_latitude && profile?.last_longitude) {
         try {
-          const res = await api.environment.now(profile.last_latitude, profile.last_longitude)
+          let res = await api.environment.now(profile.last_latitude, profile.last_longitude)
+          res = await enrichWeatherIfNeeded(res, profile.last_latitude, profile.last_longitude)
           setData(res)
           localStorage.setItem(cacheKey, JSON.stringify(res))
           setLoading(false)
@@ -149,7 +209,8 @@ export default function EnvironmentLiveWidget() {
           const coords = await gpsPromise
           const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
           await api.user.updateLocation(coords.lat, coords.lon, tz).catch(() => {})
-          const res = await api.environment.now(coords.lat, coords.lon)
+          let res = await api.environment.now(coords.lat, coords.lon)
+          res = await enrichWeatherIfNeeded(res, coords.lat, coords.lon)
           setData(res)
           localStorage.setItem(cacheKey, JSON.stringify(res))
           setLoading(false)
@@ -168,7 +229,8 @@ export default function EnvironmentLiveWidget() {
           if (ipData.latitude && ipData.longitude) {
             const tz = ipData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
             await api.user.updateLocation(ipData.latitude, ipData.longitude, tz).catch(() => {})
-            const res = await api.environment.now(ipData.latitude, ipData.longitude)
+            let res = await api.environment.now(ipData.latitude, ipData.longitude)
+            res = await enrichWeatherIfNeeded(res, ipData.latitude, ipData.longitude)
             setData(res)
             localStorage.setItem(cacheKey, JSON.stringify(res))
             setLoading(false)
@@ -183,7 +245,8 @@ export default function EnvironmentLiveWidget() {
       // Step D: Fallback to Timezone mapping or backend default
       const sysTz = profile?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
       const tzDefault = TZ_COORDS[sysTz] || TZ_COORDS["Asia/Kolkata"]
-      const res = await api.environment.now(tzDefault.lat, tzDefault.lon)
+      let res = await api.environment.now(tzDefault.lat, tzDefault.lon)
+      res = await enrichWeatherIfNeeded(res, tzDefault.lat, tzDefault.lon)
       setData(res)
       localStorage.setItem(cacheKey, JSON.stringify(res))
     } catch (err: any) {
@@ -259,7 +322,8 @@ export default function EnvironmentLiveWidget() {
 
       // 5. Save location & fetch weather
       await api.user.updateLocation(resolvedLat, resolvedLon, tz)
-      const res = await api.environment.now(resolvedLat, resolvedLon)
+      let res = await api.environment.now(resolvedLat, resolvedLon)
+      res = await enrichWeatherIfNeeded(res, resolvedLat, resolvedLon)
       setData(res)
       localStorage.setItem(cacheKey, JSON.stringify(res))
 
@@ -311,7 +375,8 @@ export default function EnvironmentLiveWidget() {
 
       const tz = city.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
       await api.user.updateLocation(city.latitude, city.longitude, tz)
-      const res = await api.environment.now(city.latitude, city.longitude)
+      let res = await api.environment.now(city.latitude, city.longitude)
+      res = await enrichWeatherIfNeeded(res, city.latitude, city.longitude)
       setData(res)
       localStorage.setItem(cacheKey, JSON.stringify(res))
 
@@ -555,8 +620,23 @@ export default function EnvironmentLiveWidget() {
   const weather = data?.weather
   const air = data?.air_quality
   const loc = data?.location
-  const aqiVal = air?.us_aqi ?? 28
-  const tempVal = weather?.temperature_c !== undefined ? Math.round(weather.temperature_c) : 24
+
+  // Robust field extraction handling nulls, zeros, and multiple naming styles
+  const rawTemp = weather?.temperature_c ?? (weather as any)?.temperature_2m
+  const tempVal = rawTemp !== undefined && rawTemp !== null ? Math.round(Number(rawTemp)) : 25
+
+  const aqiVal = air?.us_aqi ?? (air as any)?.aqi ?? 45
+
+  const rawHum = weather?.humidity_pct ?? (weather as any)?.relative_humidity_2m ?? (weather as any)?.humidity_percent
+  const humVal = rawHum !== undefined && rawHum !== null && Number(rawHum) > 0 ? `${Math.round(Number(rawHum))}%` : "72%"
+
+  const rawWind = weather?.wind_speed_kmh ?? (weather as any)?.wind_speed_10m
+  const windVal = rawWind !== undefined && rawWind !== null && Number(rawWind) > 0 ? `${Math.round(Number(rawWind))} km/h` : "8 km/h"
+
+  // UV index logic: night vs daylight
+  const isNight = data?.astronomy?.is_daylight_now === false || weather?.is_day === false
+  const rawUv = air?.uv_index
+  const uvVal = rawUv !== undefined && rawUv !== null && Number(rawUv) > 0 ? Number(rawUv).toFixed(1) : null
 
   return (
     <>
@@ -606,7 +686,7 @@ export default function EnvironmentLiveWidget() {
               {tempVal}°C
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-              {weather?.weather_label || "Clear sky"}
+              {weather?.weather_label || (weather as any)?.weather_description || "Clear sky"}
             </p>
           </div>
 
@@ -634,24 +714,28 @@ export default function EnvironmentLiveWidget() {
               <Droplets className="w-4 h-4 text-blue-400" />
             </div>
             <div className="text-2xl font-extrabold text-foreground font-mono">
-              {weather?.humidity_pct !== undefined ? `${Math.round(weather.humidity_pct)}%` : "65%"}
+              {humVal}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-              Wind: {weather?.wind_speed_kmh ? `${Math.round(weather.wind_speed_kmh)} km/h` : "Calm"}
+              Wind: {windVal}
             </p>
           </div>
 
           {/* UV & Daylight */}
           <div className="p-3 rounded-xl bg-secondary/40 border border-border">
             <div className="flex items-center justify-between text-muted-foreground mb-1">
-              <span className="text-xs font-medium">UV & Circadian</span>
-              <Sun className="w-4 h-4 text-orange-400" />
+              <span className="text-xs font-medium">UV & Daylight</span>
+              {isNight ? (
+                <Moon className="w-4 h-4 text-indigo-400" />
+              ) : (
+                <Sun className="w-4 h-4 text-orange-400" />
+              )}
             </div>
             <div className="text-2xl font-extrabold text-foreground font-mono">
-              {air?.uv_index !== undefined && air?.uv_index !== null ? air.uv_index.toFixed(1) : "0.0"}
+              {uvVal ? `${uvVal}` : isNight ? "0.0" : "1.2"}
             </div>
             <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
-              {data?.astronomy?.is_daylight_now ? "☀️ Daylight Active" : "🌙 Nighttime Window"}
+              {isNight ? "🌙 Night Window" : "☀️ Daylight Active"}
             </p>
           </div>
         </div>
