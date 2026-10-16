@@ -108,24 +108,26 @@ def _call_gemini(
         },
     }
 
-    url = f"{settings.GEMINI_URL}/{settings.GEMINI_MODEL}:generateContent?key={settings.GEMINI_API_KEY}"
+    models_to_attempt = [settings.GEMINI_MODEL]
+    if settings.GEMINI_MODEL != "gemini-flash-lite-latest":
+        models_to_attempt.append("gemini-flash-lite-latest")
 
-    try:
-        with httpx.Client(timeout=15.0) as client:
-            res = client.post(url, json=payload)
-            if res.status_code == 200:
-                data = res.json()
-                candidates = data.get("candidates") or []
-                if candidates:
-                    parts = candidates[0].get("content", {}).get("parts", [])
-                    if parts and parts[0].get("text"):
-                        return parts[0]["text"].strip()
-            else:
-                log.warning("Gemini API error HTTP %d: %s", res.status_code, res.text[:200])
-                return None
-    except Exception as exc:
-        log.warning("Failed to call Gemini API: %s", exc)
-        return None
+    for model_name in models_to_attempt:
+        url = f"{settings.GEMINI_URL}/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+        try:
+            with httpx.Client(timeout=25.0) as client:
+                res = client.post(url, json=payload)
+                if res.status_code == 200:
+                    data = res.json()
+                    candidates = data.get("candidates") or []
+                    if candidates:
+                        parts = candidates[0].get("content", {}).get("parts", [])
+                        if parts and parts[0].get("text"):
+                            return parts[0]["text"].strip()
+                else:
+                    log.warning("Gemini API error (%s) HTTP %d: %s", model_name, res.status_code, res.text[:200])
+        except Exception as exc:
+            log.warning("Failed to call Gemini API (%s): %s", model_name, exc)
 
     return None
 

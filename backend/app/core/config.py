@@ -137,7 +137,7 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "llama3.2"
     ANTHROPIC_API_KEY: str = ""
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_MODEL: str = "gemini-flash-lite-latest"
     GEMINI_URL: str = "https://generativelanguage.googleapis.com/v1beta/models"
     HF_HOME: str = ""
 
