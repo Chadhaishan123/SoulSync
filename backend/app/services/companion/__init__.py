@@ -16,27 +16,17 @@ import random
 import httpx
 from app.core.config import settings
 from app.core.safety import assess as safety_assess, CRISIS_MESSAGE
-from app.models.companion import ENGINE_GEMINI, ENGINE_SAFETY, ENGINE_TEMPLATE
+from app.models.companion import ENGINE_CLAUDE, ENGINE_GEMINI, ENGINE_SAFETY, ENGINE_TEMPLATE
 
 log = logging.getLogger("soulsync.companion")
 
 
-def _call_gemini(
-    user_message: str,
+def _build_companion_system_instruction(
     entries: List[Any],
     ml_trend: Optional[Dict[str, Any]] = None,
     ml_cluster: Optional[Dict[str, Any]] = None,
-    ml_anomaly: Optional[Dict[str, Any]] = None,
-    conversation_history: Optional[List[Any]] = None,
-) -> Optional[str]:
-    """
-    Call Google Gemini API with conversational history and ML-grounded user metrics.
-    Returns generated response text or None if the request fails or is unconfigured.
-    """
-    if not settings.GEMINI_API_KEY:
-        return None
-
-    # Calculate user wellness stats for grounding
+) -> str:
+    """Build shared compassionate persona prompt with subtle wellness grounding."""
     avg_mood = round(sum(e.mood_score for e in entries) / len(entries), 1) if entries else 7.0
     latest = entries[0] if entries else None
     latest_mood = f"{latest.mood_score}/10" if latest else "No check-ins yet"
@@ -54,7 +44,7 @@ def _call_gemini(
     trend_dir = ml_trend.get("direction", "stable") if ml_trend else "insufficient data"
     pattern = ml_cluster.get("current_pattern", "Balanced") if ml_cluster else "Reflective"
 
-    system_instruction = (
+    return (
         "You are the SoulSync AI Companion — a deeply empathetic, emotionally attuned, and warm presence. "
         "Think of yourself as an intuitive, deeply caring friend who genuinely listens, understands vulnerability, and makes the user feel truly seen, accepted, and never alone.\n\n"
         "HOW YOU SPEAK & CONNECT:\n"
@@ -71,9 +61,26 @@ def _call_gemini(
         "• Natural Flow: Keep answers brief to moderate (1 to 3 short paragraphs). Leave breathing room. End with a tender, gentle question that lets them share more if they want to, without any pressure."
     )
 
-    # Format history turns for Gemini contents: alternating user and model
-    contents: List[Dict[str, Any]] = []
 
+def _call_gemini(
+    user_message: str,
+    entries: List[Any],
+    ml_trend: Optional[Dict[str, Any]] = None,
+    ml_cluster: Optional[Dict[str, Any]] = None,
+    ml_anomaly: Optional[Dict[str, Any]] = None,
+    conversation_history: Optional[List[Any]] = None,
+) -> Optional[str]:
+    """Call Google Gemini API with conversational history and empathetic grounding."""
+    if not settings.GEMINI_API_KEY:
+        return None
+
+    system_instruction = _build_companion_system_instruction(
+        entries=entries,
+        ml_trend=ml_trend,
+        ml_cluster=ml_cluster,
+    )
+
+    contents: List[Dict[str, Any]] = []
     history_items = conversation_history or []
     for m in history_items[-8:]:
         role = getattr(m, "role", "") if not isinstance(m, dict) else m.get("role", "")
@@ -87,11 +94,9 @@ def _call_gemini(
         else:
             contents.append({"role": g_role, "parts": [{"text": content}]})
 
-    # Ensure the first message in contents is from user (Gemini format requirement)
     if contents and contents[0]["role"] == "model":
         contents.pop(0)
 
-    # Append current message as user turn
     if contents and contents[-1]["role"] == "user":
         contents[-1]["parts"][0]["text"] += f"\n{user_message}"
     else:
@@ -132,6 +137,76 @@ def _call_gemini(
     return None
 
 
+def _call_claude(
+    user_message: str,
+    entries: List[Any],
+    ml_trend: Optional[Dict[str, Any]] = None,
+    ml_cluster: Optional[Dict[str, Any]] = None,
+    ml_anomaly: Optional[Dict[str, Any]] = None,
+    conversation_history: Optional[List[Any]] = None,
+) -> Optional[str]:
+    """Call Anthropic Claude API (Sonnet/Haiku) with highest emotional nuance."""
+    if not settings.ANTHROPIC_API_KEY:
+        return None
+
+    system_instruction = _build_companion_system_instruction(
+        entries=entries,
+        ml_trend=ml_trend,
+        ml_cluster=ml_cluster,
+    )
+
+    messages: List[Dict[str, Any]] = []
+    history_items = conversation_history or []
+    for m in history_items[-8:]:
+        role = getattr(m, "role", "") if not isinstance(m, dict) else m.get("role", "")
+        content = getattr(m, "content", "") if not isinstance(m, dict) else m.get("content", "")
+        if not content:
+            continue
+        c_role = "assistant" if role in ["assistant", "therapist", "model"] else "user"
+        if messages and messages[-1]["role"] == c_role:
+            messages[-1]["content"] += f"\n{content}"
+        else:
+            messages.append({"role": c_role, "content": content})
+
+    if messages and messages[0]["role"] == "assistant":
+        messages.pop(0)
+
+    if messages and messages[-1]["role"] == "user":
+        messages[-1]["content"] += f"\n{user_message}"
+    else:
+        messages.append({"role": "user", "content": user_message})
+
+    payload = {
+        "model": settings.ANTHROPIC_MODEL,
+        "max_tokens": 600,
+        "temperature": 0.85,
+        "system": system_instruction,
+        "messages": messages,
+    }
+
+    headers = {
+        "x-api-key": settings.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+        "content-type": "application/json",
+    }
+
+    try:
+        with httpx.Client(timeout=25.0) as client:
+            res = client.post(settings.ANTHROPIC_URL, json=payload, headers=headers)
+            if res.status_code == 200:
+                data = res.json()
+                content_blocks = data.get("content") or []
+                text_parts = [b.get("text", "") for b in content_blocks if b.get("type") == "text"]
+                if text_parts:
+                    return "".join(text_parts).strip()
+            else:
+                log.warning("Claude API error HTTP %d: %s", res.status_code, res.text[:200])
+    except Exception as exc:
+        log.warning("Failed to call Claude API: %s", exc)
+
+    return None
+
+
 def generate_response(
     user_message: str,
     entries: List[Any],
@@ -163,9 +238,10 @@ def generate_response(
             "safety": safety,
         }
 
-    # ── Try Google Gemini if configured ──
-    if settings.COMPANION_ENGINE == "gemini" and settings.GEMINI_API_KEY:
-        gemini_reply = _call_gemini(
+    # ── Try LLM engines with mutual failover ──
+    # If Claude is preferred:
+    if settings.COMPANION_ENGINE == "claude" and settings.ANTHROPIC_API_KEY:
+        claude_reply = _call_claude(
             user_message=user_message,
             entries=entries,
             ml_trend=ml_trend,
@@ -173,12 +249,48 @@ def generate_response(
             ml_anomaly=ml_anomaly,
             conversation_history=conversation_history,
         )
-        if gemini_reply:
-            return {
-                "reply": gemini_reply,
-                "engine": ENGINE_GEMINI,
-                "safety": safety,
-            }
+        if claude_reply:
+            return {"reply": claude_reply, "engine": ENGINE_CLAUDE, "safety": safety}
+
+        # Failover to Gemini if Claude fails
+        if settings.GEMINI_API_KEY:
+            gemini_reply = _call_gemini(
+                user_message=user_message,
+                entries=entries,
+                ml_trend=ml_trend,
+                ml_cluster=ml_cluster,
+                ml_anomaly=ml_anomaly,
+                conversation_history=conversation_history,
+            )
+            if gemini_reply:
+                return {"reply": gemini_reply, "engine": ENGINE_GEMINI, "safety": safety}
+
+    # If Gemini (or default) is preferred:
+    else:
+        if settings.GEMINI_API_KEY:
+            gemini_reply = _call_gemini(
+                user_message=user_message,
+                entries=entries,
+                ml_trend=ml_trend,
+                ml_cluster=ml_cluster,
+                ml_anomaly=ml_anomaly,
+                conversation_history=conversation_history,
+            )
+            if gemini_reply:
+                return {"reply": gemini_reply, "engine": ENGINE_GEMINI, "safety": safety}
+
+        # Failover to Claude if Gemini fails or has no key
+        if settings.ANTHROPIC_API_KEY:
+            claude_reply = _call_claude(
+                user_message=user_message,
+                entries=entries,
+                ml_trend=ml_trend,
+                ml_cluster=ml_cluster,
+                ml_anomaly=ml_anomaly,
+                conversation_history=conversation_history,
+            )
+            if claude_reply:
+                return {"reply": claude_reply, "engine": ENGINE_CLAUDE, "safety": safety}
 
     msg_lower = user_message.lower().strip()
     clean_msg = msg_lower.rstrip("!.?")

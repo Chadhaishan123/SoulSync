@@ -32,6 +32,7 @@ ENGINE_LOCAL_LLM = "local_llm"
 ENGINE_TEMPLATE = "template"
 ENGINE_SAFETY = "safety"
 ENGINE_GEMINI = "gemini"
+ENGINE_CLAUDE = "claude"
 
 # Intents the router recognises.
 INTENT_REFLECT = "reflect"

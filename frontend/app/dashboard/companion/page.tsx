@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef } from "react"
 import { motion } from "framer-motion"
-import { MessageSquare, Send, Plus, Bot, User } from "lucide-react"
+import { MessageSquare, Send, Plus, Bot, User, Mic, MicOff, Volume2, VolumeX, Square } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import { api } from "@/lib/api"
 import Card from "@/components/ui/Card"
@@ -27,7 +27,21 @@ export default function CompanionPage() {
   const [input, setInput] = useState("")
   const [sending, setSending] = useState(false)
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [isListening, setIsListening] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const [speakingMsgIdx, setSpeakingMsgIdx] = useState<number | null>(null)
+  const [autoSpeak, setAutoSpeak] = useState(false)
+  const recognitionRef = useRef<any>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      if (SpeechRec) {
+        setSpeechSupported(true)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     if (cleanEmail) {
@@ -209,11 +223,14 @@ export default function CompanionPage() {
     setInput("")
     setSending(true)
 
+    let replyText = ""
+
     try {
       const response: CompanionResponse = await api.companion.send(
         userMessage.content,
         activeSession
       )
+      replyText = response.reply
       const assistantMessage: ChatMessage = {
         role: "assistant",
         content: response.reply,
@@ -227,6 +244,9 @@ export default function CompanionPage() {
             localStorage.setItem(`soulsync_companion_msgs_${cleanEmail}_${targetSid}`, JSON.stringify(updated))
           } catch {}
         }
+        if (autoSpeak) {
+          speakMessage(assistantMessage.content, updated.length - 1)
+        }
         return updated
       })
 
@@ -237,6 +257,7 @@ export default function CompanionPage() {
     } catch {
       // Dynamic fallback if server is waking up or network blipped
       const reply = getCompanionFallback(userMessage.content, [...messages, userMessage])
+      replyText = reply
       const assistantMessage: ChatMessage = {
         role: "assistant",
         content: reply,
@@ -250,10 +271,109 @@ export default function CompanionPage() {
             localStorage.setItem(`soulsync_companion_msgs_${cleanEmail}_${targetSid}`, JSON.stringify(updated))
           } catch {}
         }
+        if (autoSpeak) {
+          speakMessage(assistantMessage.content, updated.length - 1)
+        }
         return updated
       })
     } finally {
       setSending(false)
+    }
+  }
+
+  const speakMessage = (text: string, index: number) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      toast.error("Speech audio is not supported in this browser.")
+      return
+    }
+
+    if (speakingMsgIdx === index) {
+      window.speechSynthesis.cancel()
+      setSpeakingMsgIdx(null)
+      return
+    }
+
+    window.speechSynthesis.cancel()
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.rate = 0.92 // slightly calmer, meditative pace
+    utterance.pitch = 1.0
+
+    // Select natural English voice if present
+    const voices = window.speechSynthesis.getVoices()
+    const naturalVoice =
+      voices.find(
+        (v) =>
+          v.lang.startsWith("en") &&
+          (v.name.includes("Natural") ||
+            v.name.includes("Google") ||
+            v.name.includes("Samantha") ||
+            v.name.includes("Serena"))
+      ) || voices.find((v) => v.lang.startsWith("en"))
+
+    if (naturalVoice) utterance.voice = naturalVoice
+
+    utterance.onend = () => setSpeakingMsgIdx(null)
+    utterance.onerror = () => setSpeakingMsgIdx(null)
+
+    window.speechSynthesis.speak(utterance)
+    setSpeakingMsgIdx(index)
+  }
+
+  const stopAudio = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel()
+      setSpeakingMsgIdx(null)
+    }
+  }
+
+  const toggleListening = () => {
+    if (!speechSupported) {
+      toast.error("Speech recognition is not supported in this browser. Try Chrome or Edge!")
+      return
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop()
+      setIsListening(false)
+      return
+    }
+
+    try {
+      const SpeechRec = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      const rec = new SpeechRec()
+      recognitionRef.current = rec
+      rec.continuous = false
+      rec.interimResults = true
+      rec.lang = "en-US"
+
+      rec.onstart = () => {
+        setIsListening(true)
+        toast("Listening... speak freely 🎙️", { duration: 3000, id: "listening-toast" })
+      }
+
+      rec.onresult = (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join("")
+        setInput(transcript)
+      }
+
+      rec.onerror = (event: any) => {
+        console.warn("Speech recognition error:", event.error)
+        setIsListening(false)
+        if (event.error === "not-allowed") {
+          toast.error("Microphone permission was denied.")
+        }
+      }
+
+      rec.onend = () => {
+        setIsListening(false)
+      }
+
+      rec.start()
+    } catch (err) {
+      console.error("Could not start speech recognition:", err)
+      setIsListening(false)
     }
   }
 
@@ -265,6 +385,7 @@ export default function CompanionPage() {
   }
 
   const startNewChat = () => {
+    stopAudio()
     setActiveSession(null)
     setMessages([])
   }
@@ -307,16 +428,48 @@ export default function CompanionPage() {
       {/* Chat Area */}
       <Card padding="none" className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="px-5 py-3 border-b border-border flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-soul-coral to-pink-500 flex items-center justify-center">
-            <Bot className="w-4 h-4 text-white" />
+        <div className="px-5 py-3 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-soul-coral to-pink-500 flex items-center justify-center">
+              <Bot className="w-4 h-4 text-white" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-foreground">SoulSync Companion</p>
+              <p className="text-[10px] text-emerald-500 font-medium flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Empathetic Presence · Always here for you
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-bold text-foreground">SoulSync Companion</p>
-            <p className="text-[10px] text-emerald-500 font-medium flex items-center gap-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              Empathetic Presence · Always here for you
-            </p>
+
+          <div className="flex items-center gap-2">
+            {speakingMsgIdx !== null && (
+              <button
+                onClick={stopAudio}
+                className="px-2.5 py-1 rounded-lg text-xs bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 flex items-center gap-1.5 transition-colors"
+                title="Stop speaking"
+              >
+                <Square className="w-3 h-3 fill-current" />
+                <span className="text-[11px] font-medium">Stop Voice</span>
+              </button>
+            )}
+            <button
+              onClick={() => {
+                const nextState = !autoSpeak
+                setAutoSpeak(nextState)
+                if (!nextState) stopAudio()
+                toast(nextState ? "Auto-voice enabled (companion reads replies) 🔊" : "Auto-voice muted 🔇", { id: "voice-toggle" })
+              }}
+              className={`p-1.5 px-2.5 rounded-lg border text-xs flex items-center gap-1.5 transition-all cursor-pointer ${
+                autoSpeak
+                  ? "bg-soul-purple/15 text-soul-purple border-soul-purple/30 font-medium"
+                  : "bg-secondary text-muted-foreground hover:text-foreground border-border/60"
+              }`}
+              title={autoSpeak ? "Auto-voice is ON: Companion will read replies aloud" : "Auto-voice is OFF: Click to enable speech"}
+            >
+              {autoSpeak ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+              <span className="hidden sm:inline text-[11px]">{autoSpeak ? "Voice On" : "Voice Off"}</span>
+            </button>
           </div>
         </div>
 
@@ -375,14 +528,40 @@ export default function CompanionPage() {
                 {msg.role === "user"
                   ? <User className="w-3.5 h-3.5 text-soul-purple" />
                   : <Bot className="w-3.5 h-3.5 text-white" />
-                }
+              }
               </div>
               <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
                 msg.role === "user"
                   ? "bg-soul-purple text-white rounded-br-md"
                   : "bg-secondary text-foreground rounded-bl-md"
               }`}>
-                {msg.content}
+                <div>{msg.content}</div>
+                {msg.role === "assistant" && (
+                  <div className="mt-2 pt-1 border-t border-border/40 flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span className="opacity-60">{formatRelative(msg.timestamp)}</span>
+                    <button
+                      onClick={() => speakMessage(msg.content, i)}
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] transition-colors cursor-pointer ${
+                        speakingMsgIdx === i
+                          ? "bg-soul-coral/20 text-soul-coral font-medium"
+                          : "opacity-70 hover:opacity-100 hover:bg-background/40"
+                      }`}
+                      title={speakingMsgIdx === i ? "Stop audio" : "Listen to this message"}
+                    >
+                      {speakingMsgIdx === i ? (
+                        <>
+                          <Square className="w-2.5 h-2.5 fill-current animate-pulse text-soul-coral" />
+                          <span>Speaking...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Volume2 className="w-2.5 h-2.5" />
+                          <span>Listen</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           ))}
@@ -406,14 +585,28 @@ export default function CompanionPage() {
 
         {/* Input */}
         <div className="p-4 border-t border-border">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            <button
+              type="button"
+              onClick={toggleListening}
+              className={`p-2.5 rounded-xl border transition-all shrink-0 cursor-pointer ${
+                isListening
+                  ? "bg-red-500/20 text-red-500 border-red-500/50 animate-pulse shadow-md shadow-red-500/20"
+                  : "bg-secondary text-muted-foreground hover:text-foreground hover:bg-soul-purple/10 hover:border-soul-purple/30 border-border"
+              }`}
+              title={isListening ? "Listening... click to pause" : "Click to speak your thoughts freely"}
+            >
+              {isListening ? <MicOff className="w-4 h-4 text-red-500" /> : <Mic className="w-4 h-4" />}
+            </button>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Share what's on your heart, or how your day really went..."
+              placeholder={isListening ? "Listening to your voice... speak freely..." : "Share what's on your heart, or how your day really went..."}
               rows={1}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none text-sm"
+              className={`flex-1 px-4 py-2.5 rounded-xl bg-input border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none text-sm transition-colors ${
+                isListening ? "border-red-500/40 ring-1 ring-red-500/20" : "border-border"
+              }`}
             />
             <Button
               onClick={() => handleSend()}
