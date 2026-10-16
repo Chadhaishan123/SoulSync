@@ -33,6 +33,7 @@ ENGINE_TEMPLATE = "template"
 ENGINE_SAFETY = "safety"
 ENGINE_GEMINI = "gemini"
 ENGINE_CLAUDE = "claude"
+ENGINE_GROQ = "groq"
 
 # Intents the router recognises.
 INTENT_REFLECT = "reflect"

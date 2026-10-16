@@ -131,7 +131,7 @@ class Settings(BaseSettings):
     EMOTION_MODEL_FALLBACK: str = "bhadresh-savani/distilbert-base-uncased-emotion"
     SENTIMENT_MODEL: str = "distilbert-base-uncased-finetuned-sst-2-english"
 
-    COMPANION_ENGINE: Literal["local", "template", "ollama", "claude", "gemini"] = "gemini"
+    COMPANION_ENGINE: Literal["local", "template", "ollama", "claude", "gemini", "groq"] = "gemini"
     COMPANION_MODEL: str = "google/flan-t5-base"
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3.2"
@@ -141,6 +141,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-flash-lite-latest"
     GEMINI_URL: str = "https://generativelanguage.googleapis.com/v1beta/models"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    GROQ_URL: str = "https://api.groq.com/openai/v1/chat/completions"
     HF_HOME: str = ""
 
     # ------------------------------------------------------- geo (no default)

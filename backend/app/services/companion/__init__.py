@@ -16,7 +16,7 @@ import random
 import httpx
 from app.core.config import settings
 from app.core.safety import assess as safety_assess, CRISIS_MESSAGE
-from app.models.companion import ENGINE_CLAUDE, ENGINE_GEMINI, ENGINE_SAFETY, ENGINE_TEMPLATE
+from app.models.companion import ENGINE_CLAUDE, ENGINE_GEMINI, ENGINE_GROQ, ENGINE_SAFETY, ENGINE_TEMPLATE
 
 log = logging.getLogger("soulsync.companion")
 
@@ -207,6 +207,70 @@ def _call_claude(
     return None
 
 
+def _call_groq(
+    user_message: str,
+    entries: List[Any],
+    ml_trend: Optional[Dict[str, Any]] = None,
+    ml_cluster: Optional[Dict[str, Any]] = None,
+    ml_anomaly: Optional[Dict[str, Any]] = None,
+    conversation_history: Optional[List[Any]] = None,
+) -> Optional[str]:
+    """Call Groq API (Llama 3.3 70B) for ultra-fast, empathetic response."""
+    if not settings.GROQ_API_KEY:
+        return None
+
+    system_instruction = _build_companion_system_instruction(
+        entries=entries,
+        ml_trend=ml_trend,
+        ml_cluster=ml_cluster,
+    )
+
+    messages: List[Dict[str, Any]] = [{"role": "system", "content": system_instruction}]
+    history_items = conversation_history or []
+    for m in history_items[-8:]:
+        role = getattr(m, "role", "") if not isinstance(m, dict) else m.get("role", "")
+        content = getattr(m, "content", "") if not isinstance(m, dict) else m.get("content", "")
+        if not content:
+            continue
+        c_role = "assistant" if role in ["assistant", "therapist", "model"] else "user"
+        if len(messages) > 1 and messages[-1]["role"] == c_role:
+            messages[-1]["content"] += f"\n{content}"
+        else:
+            messages.append({"role": c_role, "content": content})
+
+    if len(messages) > 1 and messages[-1]["role"] == "user":
+        messages[-1]["content"] += f"\n{user_message}"
+    else:
+        messages.append({"role": "user", "content": user_message})
+
+    payload = {
+        "model": settings.GROQ_MODEL,
+        "messages": messages,
+        "temperature": 0.85,
+        "max_tokens": 600,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {settings.GROQ_API_KEY}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        with httpx.Client(timeout=20.0) as client:
+            res = client.post(settings.GROQ_URL, json=payload, headers=headers)
+            if res.status_code == 200:
+                data = res.json()
+                choices = data.get("choices") or []
+                if choices and choices[0].get("message", {}).get("content"):
+                    return choices[0]["message"]["content"].strip()
+            else:
+                log.warning("Groq API error HTTP %d: %s", res.status_code, res.text[:200])
+    except Exception as exc:
+        log.warning("Failed to call Groq API: %s", exc)
+
+    return None
+
+
 def generate_response(
     user_message: str,
     entries: List[Any],
@@ -238,59 +302,30 @@ def generate_response(
             "safety": safety,
         }
 
-    # ── Try LLM engines with mutual failover ──
-    # If Claude is preferred:
-    if settings.COMPANION_ENGINE == "claude" and settings.ANTHROPIC_API_KEY:
-        claude_reply = _call_claude(
-            user_message=user_message,
-            entries=entries,
-            ml_trend=ml_trend,
-            ml_cluster=ml_cluster,
-            ml_anomaly=ml_anomaly,
-            conversation_history=conversation_history,
-        )
-        if claude_reply:
-            return {"reply": claude_reply, "engine": ENGINE_CLAUDE, "safety": safety}
+    # Helper function to try an engine and return response if successful
+    def _try_engine(engine_name: str) -> Optional[Dict[str, Any]]:
+        if engine_name == "groq" and settings.GROQ_API_KEY:
+            rep = _call_groq(user_message, entries, ml_trend, ml_cluster, ml_anomaly, conversation_history)
+            if rep:
+                return {"reply": rep, "engine": ENGINE_GROQ, "safety": safety}
+        elif engine_name == "gemini" and settings.GEMINI_API_KEY:
+            rep = _call_gemini(user_message, entries, ml_trend, ml_cluster, ml_anomaly, conversation_history)
+            if rep:
+                return {"reply": rep, "engine": ENGINE_GEMINI, "safety": safety}
+        elif engine_name == "claude" and settings.ANTHROPIC_API_KEY:
+            rep = _call_claude(user_message, entries, ml_trend, ml_cluster, ml_anomaly, conversation_history)
+            if rep:
+                return {"reply": rep, "engine": ENGINE_CLAUDE, "safety": safety}
+        return None
 
-        # Failover to Gemini if Claude fails
-        if settings.GEMINI_API_KEY:
-            gemini_reply = _call_gemini(
-                user_message=user_message,
-                entries=entries,
-                ml_trend=ml_trend,
-                ml_cluster=ml_cluster,
-                ml_anomaly=ml_anomaly,
-                conversation_history=conversation_history,
-            )
-            if gemini_reply:
-                return {"reply": gemini_reply, "engine": ENGINE_GEMINI, "safety": safety}
+    # Priority order based on configured COMPANION_ENGINE
+    preferred = settings.COMPANION_ENGINE
+    engine_order = [preferred] + [e for e in ["gemini", "groq", "claude"] if e != preferred]
 
-    # If Gemini (or default) is preferred:
-    else:
-        if settings.GEMINI_API_KEY:
-            gemini_reply = _call_gemini(
-                user_message=user_message,
-                entries=entries,
-                ml_trend=ml_trend,
-                ml_cluster=ml_cluster,
-                ml_anomaly=ml_anomaly,
-                conversation_history=conversation_history,
-            )
-            if gemini_reply:
-                return {"reply": gemini_reply, "engine": ENGINE_GEMINI, "safety": safety}
-
-        # Failover to Claude if Gemini fails or has no key
-        if settings.ANTHROPIC_API_KEY:
-            claude_reply = _call_claude(
-                user_message=user_message,
-                entries=entries,
-                ml_trend=ml_trend,
-                ml_cluster=ml_cluster,
-                ml_anomaly=ml_anomaly,
-                conversation_history=conversation_history,
-            )
-            if claude_reply:
-                return {"reply": claude_reply, "engine": ENGINE_CLAUDE, "safety": safety}
+    for eng in engine_order:
+        result = _try_engine(eng)
+        if result:
+            return result
 
     msg_lower = user_message.lower().strip()
     clean_msg = msg_lower.rstrip("!.?")
