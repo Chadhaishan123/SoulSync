@@ -373,7 +373,7 @@ export default function EnvironmentLiveWidget() {
       const res = await fetch(
         `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
           query.trim()
-        )}&count=6&language=en&format=json`
+        )}&count=8&language=en&format=json`
       )
       if (res.ok) {
         const json = await res.json()
@@ -383,6 +383,42 @@ export default function EnvironmentLiveWidget() {
       setSearchResults([])
     } finally {
       setIsSearching(false)
+    }
+  }
+
+  // Directly search and apply the best match (for Enter key or Apply button)
+  const handleDirectSearchAndSelect = async (query: string) => {
+    if (!query || query.trim().length < 2) return
+    setIsSearching(true)
+    try {
+      const res = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+          query.trim()
+        )}&count=1&language=en&format=json`
+      )
+      if (res.ok) {
+        const json = await res.json()
+        if (json.results && json.results.length > 0) {
+          handleSelectCity(json.results[0])
+          return
+        }
+      }
+      toast.error(`No city found matching "${query}". Try another spelling.`)
+    } catch {
+      toast.error("Could not reach geocoding service")
+    } finally {
+      setIsSearching(false)
+    }
+  }
+
+  const handleKeyDownSearch = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      if (searchResults.length > 0) {
+        handleSelectCity(searchResults[0])
+      } else if (searchQuery.trim().length >= 2) {
+        handleDirectSearchAndSelect(searchQuery.trim())
+      }
     }
   }
 
@@ -506,21 +542,39 @@ export default function EnvironmentLiveWidget() {
               Search any city worldwide to get real-time Open-Meteo weather and AQI without requiring browser GPS permissions.
             </p>
 
-            <div className="relative mb-4">
-              <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="e.g. Delhi, Mumbai, London, New York..."
-                value={searchQuery}
-                onChange={(e) => handleSearchCities(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-soul-teal/50"
-              />
+            <div className="relative mb-4 flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="e.g. Chennai, Delhi, Mumbai, London..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearchCities(e.target.value)}
+                  onKeyDown={handleKeyDownSearch}
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-soul-teal/50"
+                />
+              </div>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => {
+                  if (searchResults.length > 0) {
+                    handleSelectCity(searchResults[0])
+                  } else if (searchQuery.trim().length >= 2) {
+                    handleDirectSearchAndSelect(searchQuery.trim())
+                  }
+                }}
+                disabled={isSearching || searchQuery.trim().length < 2}
+                className="shrink-0"
+              >
+                Apply
+              </Button>
             </div>
 
             {isSearching && (
               <div className="text-center py-4 text-xs text-muted-foreground">
-                Searching cities...
+                Searching live cities...
               </div>
             )}
 
@@ -529,7 +583,7 @@ export default function EnvironmentLiveWidget() {
                 <button
                   key={`${city.id}-${city.name}`}
                   onClick={() => handleSelectCity(city)}
-                  className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors flex items-center justify-between group"
+                  className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors flex items-center justify-between group cursor-pointer"
                 >
                   <div>
                     <div className="text-sm font-semibold text-foreground group-hover:text-soul-teal">
@@ -545,23 +599,25 @@ export default function EnvironmentLiveWidget() {
 
               {!isSearching && searchQuery.length >= 2 && searchResults.length === 0 && (
                 <div className="text-center py-4 text-xs text-muted-foreground">
-                  No matching cities found. Try another spelling.
+                  No matching cities found. Press <strong>Apply</strong> or try another spelling.
                 </div>
               )}
 
               {searchQuery.length < 2 && (
                 <div className="pt-2">
                   <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-2">
-                    Popular Locations
+                    Quick Pick Locations
                   </span>
                   <div className="flex flex-wrap gap-1.5">
                     {[
+                      { name: "Chennai", lat: 13.0827, lon: 80.2707, tz: "Asia/Kolkata", country: "India" },
                       { name: "New Delhi", lat: 28.6139, lon: 77.209, tz: "Asia/Kolkata", country: "India" },
                       { name: "Mumbai", lat: 19.076, lon: 72.8777, tz: "Asia/Kolkata", country: "India" },
                       { name: "Bengaluru", lat: 12.9716, lon: 77.5946, tz: "Asia/Kolkata", country: "India" },
+                      { name: "Kolkata", lat: 22.5726, lon: 88.3639, tz: "Asia/Kolkata", country: "India" },
                       { name: "London", lat: 51.5074, lon: -0.1278, tz: "Europe/London", country: "UK" },
                       { name: "New York", lat: 40.7128, lon: -74.006, tz: "America/New_York", country: "USA" },
-                      { name: "San Francisco", lat: 37.7749, lon: -122.4194, tz: "America/Los_Angeles", country: "USA" },
+                      { name: "Tokyo", lat: 35.6762, lon: 139.6503, tz: "Asia/Tokyo", country: "Japan" },
                     ].map((loc) => (
                       <button
                         key={loc.name}
@@ -575,9 +631,9 @@ export default function EnvironmentLiveWidget() {
                             country: loc.country,
                           })
                         }
-                        className="px-2.5 py-1 rounded-lg bg-secondary/70 hover:bg-soul-teal/20 text-xs text-foreground hover:text-soul-teal transition-colors"
+                        className="px-2.5 py-1 rounded-lg bg-secondary/70 hover:bg-soul-teal/20 text-xs text-foreground hover:text-soul-teal transition-colors cursor-pointer"
                       >
-                        {loc.name}
+                        📍 {loc.name}
                       </button>
                     ))}
                   </div>

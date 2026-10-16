@@ -249,7 +249,7 @@ export default function DashboardPage() {
           <Card variant="interactive" className="h-full">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                Today&apos;s Emotional Weather
+                Today&apos;s Emotional Mind State
               </span>
               {isLocked && (
                 <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
