@@ -1,8 +1,10 @@
 export interface JournalEntry {
   id: number
   user_id: number
+  title?: string | null
   content: string
-  entry_type: string
+  kind?: string
+  entry_type?: string
   local_date: string
   written_at: string
   analysis?: JournalAnalysis | null
@@ -36,6 +38,8 @@ export interface GratitudeItem {
 
 export interface JournalCreatePayload {
   content: string
+  title?: string
+  kind?: string
   entry_type?: string
   gratitude_items?: string[]
 }

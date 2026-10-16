@@ -225,6 +225,21 @@ export const api = {
         `/api/v1/users/me/journal/${entryId}/analyze`,
         { method: "POST" }
       ),
+    getPrompt: (category?: string) => {
+      const qs = category ? `?category=${encodeURIComponent(category)}` : ""
+      return request<{ prompt: string; category: string }>(`/api/v1/users/me/journal/prompt${qs}`)
+    },
+    reframe: (thought: string) =>
+      request<{
+        original_thought: string
+        distortion: string
+        explanation: string
+        balanced_perspective: string
+        actionable_affirmation: string
+      }>("/api/v1/users/me/journal/reframe", {
+        method: "POST",
+        body: { thought },
+      }),
   },
 
   sleep: {

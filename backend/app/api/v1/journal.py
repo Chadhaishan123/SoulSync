@@ -13,8 +13,9 @@ from app.api.deps import get_current_user, get_profile, local_date_for
 from app.core.security import utcnow
 from app.db.session import get_db
 from app.models import JournalAnalysis, JournalEntry, User, UserProfile
-from app.schemas.journal import AnalysisOut, JournalCreate, JournalOut
+from app.schemas.journal import AnalysisOut, JournalCreate, JournalOut, PromptResponse, ReframeRequest, ReframeResponse
 from app.services.nlp import analyze_text
+from app.services.journal_ai import generate_journal_prompt, cbt_reframe_thought
 
 log = logging.getLogger("soulsync.journal")
 
@@ -117,3 +118,21 @@ def analyze_entry(
         entry.id, result["engine"], result["sentiment_label"],
     )
     return AnalysisOut.model_validate(analysis)
+
+
+@router.get("/me/journal/prompt", response_model=PromptResponse)
+def get_daily_prompt(
+    category: Optional[str] = None,
+    user: User = Depends(get_current_user),
+) -> PromptResponse:
+    """Generate or retrieve an inspiring reflective journaling prompt."""
+    return generate_journal_prompt(category=category)
+
+
+@router.post("/me/journal/reframe", response_model=ReframeResponse)
+def reframe_automatic_thought(
+    payload: ReframeRequest,
+    user: User = Depends(get_current_user),
+) -> ReframeResponse:
+    """CBT thought reframe assistant: detects cognitive distortions and provides balanced perspective."""
+    return cbt_reframe_thought(payload.thought)

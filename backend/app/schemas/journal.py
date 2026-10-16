@@ -1,10 +1,9 @@
-"""Pydantic schemas for journal entries and NLP analysis."""
+"""Pydantic schemas for journal entries, NLP analysis, AI prompts, and CBT reframing."""
 
 from __future__ import annotations
 
 import datetime as dt
 from typing import Dict, List, Optional
-
 from pydantic import Field
 
 from app.schemas.common import ORMModel
@@ -46,3 +45,20 @@ class JournalOut(ORMModel):
     was_dictated: bool = False
     analysis: Optional[AnalysisOut] = None
     created_at: dt.datetime
+
+
+class PromptResponse(ORMModel):
+    prompt: str
+    category: str
+
+
+class ReframeRequest(ORMModel):
+    thought: str = Field(..., min_length=3, max_length=1000)
+
+
+class ReframeResponse(ORMModel):
+    original_thought: str
+    distortion: str
+    explanation: str
+    balanced_perspective: str
+    actionable_affirmation: str
