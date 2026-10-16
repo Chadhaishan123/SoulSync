@@ -137,62 +137,61 @@ export default function CompanionPage() {
     let reply = ""
 
     if (isFrustrated) {
-      reply = "I hear your frustration completely. When you're already carrying so much mental fatigue, standard advice can feel hollow. You don't have to force yourself to do anything right now. If we set all expectations aside, what would bring you even 1% relief in this moment?"
+      reply = "I really hear you. When you're already carrying so much on your shoulders, generic advice can feel completely hollow and frustrating. You don't have to force yourself to do anything right now. Let's take off all the pressure. What would bring you even a tiny shred of comfort right now?"
     } else if (isExhausted) {
-      reply = "I can sense how completely drained you are. Please treat today as an intentional rest day. Give your body and mind permission to stop pushing. Can you step away from screens for a little while and let yourself rest?"
+      reply = "I can tell how deeply drained you feel. Please give yourself permission to just stop pushing. You don't have to carry the whole world today. Can you step away for a bit and let your body and mind actually rest?"
     } else if (isCurious) {
       if (topic === "sleep") {
-        reply = "When our circadian rhythms are disrupted, the emotional center of our brain (the amygdala) becomes significantly more reactive. That's why everyday stressors feel so amplified when we're sleep-deprived. Would you like to explore gentle wind-down routines or sleep environment resets?"
+        reply = "When we don't get enough sleep, everything in life feels magnified. Small annoyances suddenly feel like massive hurdles, and our patience runs thin. It's not a personal failure — your inner battery is simply depleted. How has your sleep been feeling lately?"
       } else if (topic === "work") {
-        reply = "Every time we switch between tasks or worry about unfinished work, our brain retains 'attentional residue'. That cognitive friction quickly depletes executive energy. Taking 5-minute pauses between focused sprints prevents burnout before it starts."
+        reply = "Juggling so many tasks at once leaves our minds constantly buzzing in the background. It drains our mental fuel before we even realize it. Taking small, quiet breathers throughout the day isn't being lazy — it's how you protect yourself from burning out."
       } else {
-        reply = "Our mind and body are in constant feedback. When thoughts anticipate tension, physical muscles tighten and pulse rates rise, signaling back to the brain that danger is present. Conscious breathing interrupts that feedback loop."
+        reply = "Our emotions and our bodies are constantly in conversation. When we feel overwhelmed, our muscles tighten and our breath gets shallow without us even noticing. Just acknowledging what you're feeling helps soften that tension."
       }
     } else if (isReceptive && history.length > 0) {
       if (topic === "sleep") {
-        reply = "That's wonderful. Let's make that your gentle intention for tonight: dim lights 30 minutes before bed and set your phone aside. I'm cheering for you to have a restorative night!"
+        reply = "I'm really glad to hear that. Be gentle with yourself tonight. Dim the lights early, leave your phone across the room, and let yourself sink into quiet. You deserve good rest."
       } else if (topic === "work") {
-        reply = "Taking that pause is a huge victory for your focus. Give yourself permission to tackle one micro-step at a time. What is the single next task you're approaching with a calmer mind?"
+        reply = "That's a really healthy choice. Tackling one tiny piece at a time is so much kinder to yourself than trying to finish the whole mountain. What's the next small thing you want to look at?"
       } else if (topic === "anxiety") {
-        reply = "Notice the slight release in your chest when you give yourself permission to pause. Even three deep belly breaths make a measurable difference. Would you like to try another grounding breath?"
+        reply = "Notice how even taking a moment to breathe gives your chest a little more room. You're doing great just by pausing. How does your body feel right now?"
       } else {
-        reply = "That awareness is meaningful progress. Taking small, consistent steps is what builds lasting calm. What feels like the kindest next step for you today?"
+        reply = "That awareness is really wonderful. Taking small, kind steps for yourself is how real calm is built. What feels like the gentlest next step for you today?"
       }
     } else if (q.includes("hi") || q.includes("hello") || q.includes("hey")) {
-      reply = "Hello! I'm right here with you. How is your day treating you so far? Tell me what's on your mind."
+      reply = "Hey, I'm really glad you reached out today. How are you really doing right now? Tell me whatever is on your heart."
     } else if (topic === "anxiety") {
-      if (isAlreadySent("Let's take a slow 4-7-8 breath")) {
-        reply = "Try this grounding check right now: look around and spot 3 green or blue objects, feel the temperature of the air on your hands, and let your jaw unclench. You are safe in this physical moment."
+      if (isAlreadySent("Let's slow everything down")) {
+        reply = "Feel your feet on the ground, drop your shoulders away from your ears, and take one slow breath with me. You don't have to figure out all of tomorrow right now. You are safe in this moment."
       } else {
-        reply = "Let's take a slow 4-7-8 breath together right now: Inhale gently for 4 counts... Hold softly for 7... Exhale slowly through your mouth for 8. Feel your shoulders drop. What is making you feel anxious?"
+        reply = "Let's slow everything down for just a moment. Breathe in softly... and let out a long, slow sigh. You don't have to carry every worry alone. What's the main thought that's weighing on you right now?"
       }
     } else if (topic === "sadness") {
-      if (isAlreadySent("I hear how heavy things feel")) {
-        reply = "You don't need to explain or justify your sadness to anyone today. Sometimes the most healing thing is simply curling up with warmth and allowing yourself to rest without guilt."
+      if (isAlreadySent("I'm really sorry you're hurting")) {
+        reply = "You don't need to put on a brave face or explain your sadness to anyone today. Sometimes the kindest thing you can do is just wrap yourself in warmth and let yourself rest without guilt."
       } else {
-        reply = "I hear how heavy things feel right now, and I want you to know it's completely okay to feel sad. You don't have to carry it all by yourself. What's weighing on you today?"
+        reply = "I'm really sorry you're hurting right now. It's completely okay to feel sad, and you don't have to pretend everything is fine here. I'm right here with you. What's been feeling so heavy?"
       }
     } else if (topic === "sleep") {
       if (q.includes("wake") || q.includes("3am") || q.includes("4am") || q.includes("middle")) {
-        reply = "Waking up in the night often comes from a blood sugar dip or sudden adrenaline surge. Do NOT look at your clock or phone. Keep your eyes closed, breathe deeply, and tell your brain: 'Resting quietly is still restoring my energy.' If awake after 20 minutes, sit in dim light with a book until you feel drowsy."
-      } else if (isAlreadySent("Sleep is foundational")) {
-        reply = "For tonight's wind-down, keep the room cool (~18-19°C), dim your bedroom lighting 45 minutes before sleep, and try doing a 3-minute brain dump on physical paper to unburden your mind."
+        reply = "Waking up in the middle of the night can be so frustrating. Try not to check the clock or your phone — seeing the time only wakes your brain up more. Keep your eyes closed, breathe slowly, and remind yourself: simply resting quietly with your eyes closed is still recharging your body."
+      } else if (isAlreadySent("Sleep can be so hard")) {
+        reply = "Before bed tonight, try writing down whatever is circling in your head onto a piece of paper so your mind doesn't feel like it has to keep holding it all night. What has been keeping you up?"
       } else {
-        reply = "Sleep is foundational for mental recovery. If your mind is racing in bed, try journaling your thoughts onto paper or listening to calming brown noise. What is keeping you awake?"
+        reply = "Sleep can be so hard when your mind has so much running through it. You're not alone in struggling with this. What's been on your mind when your head hits the pillow?"
       }
     } else if (topic === "work") {
       if (q.includes("deadline") || q.includes("exam") || q.includes("boss") || q.includes("tomorrow")) {
-        reply = "When deadlines loom, the brain enters freeze mode because the whole mountain seems impossible. Shrink it down: what is one 2-minute micro-action you can take right now? Just opening the tab or writing one heading breaks the freeze."
-      } else if (isAlreadySent("It sounds like you're carrying a lot of mental weight")) {
-        reply = "Remember: you are a human being, not an output machine. Your worth doesn't fluctuate with your productivity. What is one non-essential task you can give yourself permission to ignore today?"
+        reply = "When big deadlines approach, the whole mountain feels impossible and our brains just want to freeze. Shrink it way down: what is one tiny 2-minute step you can do? Just opening the document or typing one sentence breaks the freeze."
+      } else if (isAlreadySent("You are a human being")) {
+        reply = "Remember: your worth as a person doesn't change with how productive you were today. Give yourself permission to let go of what isn't urgent."
       } else {
-        reply = "It sounds like you're carrying a lot of mental weight. Remember that rest is essential fuel, not something you have to earn. Can you give yourself a 10-minute break away from screens?"
+        reply = "It sounds like you've been carrying a tremendous amount of weight. Rest isn't a reward you have to earn — you need it to live. Can you take even 5 quiet minutes away from screens to catch your breath?"
       }
     }
 
     if (!reply || isAlreadySent(reply)) {
-      const snippet = query.length > 55 ? query.slice(0, 52) + "..." : query
-      reply = `Thank you for sharing that — "${snippet}". Looking at your present moment, what is one small thing right now that would bring you a sense of grounded comfort?`
+      reply = "I'm really listening. Tell me more about that if you'd like — I'm right here with you."
     }
 
     return reply
