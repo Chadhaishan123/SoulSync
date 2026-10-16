@@ -369,6 +369,30 @@ export const api = {
         body: { avatar_url },
       }),
   },
+
+  therapist: {
+    chat: (message: string, history: Array<{ role: string; content: string }>) =>
+      request<{
+        reply: string
+        distortion_detected?: string | null
+        distortion_advice?: string | null
+        tool_suggestion?: string | null
+        is_crisis: boolean
+      }>("/api/therapist/chat", {
+        method: "POST",
+        body: { message, history },
+      }),
+    summary: (history: Array<{ role: string; content: string }>) =>
+      request<{
+        trigger: string
+        primary_distortion: string
+        balanced_perspective: string
+        homework_exercise: string
+      }>("/api/therapist/summary", {
+        method: "POST",
+        body: { history },
+      }),
+  },
 }
 
 export { ApiError, clearTokens, setTokens, getToken }
