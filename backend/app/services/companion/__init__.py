@@ -13,10 +13,121 @@ from collections import Counter
 from typing import Any, Dict, List, Optional
 import random
 
+import httpx
+from app.core.config import settings
 from app.core.safety import assess as safety_assess, CRISIS_MESSAGE
-from app.models.companion import ENGINE_SAFETY, ENGINE_TEMPLATE
+from app.models.companion import ENGINE_GEMINI, ENGINE_SAFETY, ENGINE_TEMPLATE
 
 log = logging.getLogger("soulsync.companion")
+
+
+def _call_gemini(
+    user_message: str,
+    entries: List[Any],
+    ml_trend: Optional[Dict[str, Any]] = None,
+    ml_cluster: Optional[Dict[str, Any]] = None,
+    ml_anomaly: Optional[Dict[str, Any]] = None,
+    conversation_history: Optional[List[Any]] = None,
+) -> Optional[str]:
+    """
+    Call Google Gemini API with conversational history and ML-grounded user metrics.
+    Returns generated response text or None if the request fails or is unconfigured.
+    """
+    if not settings.GEMINI_API_KEY:
+        return None
+
+    # Calculate user wellness stats for grounding
+    avg_mood = round(sum(e.mood_score for e in entries) / len(entries), 1) if entries else 7.0
+    latest = entries[0] if entries else None
+    latest_mood = f"{latest.mood_score}/10" if latest else "No check-ins yet"
+    latest_emotion = getattr(latest, "primary_emotion", "Reflective") if latest else "None"
+
+    emotions = [e.primary_emotion for e in entries if getattr(e, "primary_emotion", None)]
+    top_emotions = ", ".join(f"{em} ({c}x)" for em, c in Counter(emotions).most_common(3)) if emotions else "None"
+
+    stress_scores = [e.stress_level for e in entries if getattr(e, "stress_level", None) is not None]
+    avg_stress = round(sum(stress_scores) / len(stress_scores), 1) if stress_scores else "N/A"
+
+    sleep_scores = [e.sleep_quality for e in entries if getattr(e, "sleep_quality", None) is not None]
+    avg_sleep = round(sum(sleep_scores) / len(sleep_scores), 1) if sleep_scores else "N/A"
+
+    trend_dir = ml_trend.get("direction", "stable") if ml_trend else "insufficient data"
+    pattern = ml_cluster.get("current_pattern", "Balanced") if ml_cluster else "Reflective"
+
+    system_instruction = (
+        "You are the SoulSync AI Companion — a compassionate, empathetic, and mindful wellness companion and reflective guide.\n"
+        "Your purpose is to hold safe, non-judgmental space for the user, help them reflect on their feelings, understand their mental wellness patterns, and gently suggest grounding or mindfulness practices when helpful.\n\n"
+        "CORE GUIDELINES:\n"
+        "1. Tone: Warm, empathetic, attentive, and grounded. Keep responses concise to moderate (2-4 paragraphs max) so the conversation feels natural and conversational, not like an essay.\n"
+        "2. Grounding in Real Data: You have access to the user's authentic logged wellness metrics and machine learning patterns:\n"
+        f"   - Recent average mood: {avg_mood}/10\n"
+        f"   - Latest check-in mood: {latest_mood} (primary emotion: {latest_emotion})\n"
+        f"   - Frequent emotions: {top_emotions}\n"
+        f"   - Average stress: {avg_stress}/10, Average sleep: {avg_sleep}/10\n"
+        f"   - Current behavioral pattern: {pattern}\n"
+        f"   - Mood trend: {trend_dir}\n"
+        "   Refer to these patterns naturally when relevant, but don't dump raw numbers unless the user asks.\n"
+        "3. Boundaries: You are a supportive wellness companion, NOT a medical doctor or clinical therapist. If the user expresses severe crisis or self-harm, gently provide crisis support helpline guidance.\n"
+        "4. Active Listening: Validate feelings first before jumping to problem-solving. Ask thoughtful, gentle open-ended questions."
+    )
+
+    # Format history turns for Gemini contents: alternating user and model
+    contents: List[Dict[str, Any]] = []
+
+    history_items = conversation_history or []
+    for m in history_items[-8:]:
+        role = getattr(m, "role", "") if not isinstance(m, dict) else m.get("role", "")
+        content = getattr(m, "content", "") if not isinstance(m, dict) else m.get("content", "")
+        if not content:
+            continue
+        g_role = "model" if role in ["assistant", "therapist", "model"] else "user"
+
+        if contents and contents[-1]["role"] == g_role:
+            contents[-1]["parts"][0]["text"] += f"\n{content}"
+        else:
+            contents.append({"role": g_role, "parts": [{"text": content}]})
+
+    # Ensure the first message in contents is from user (Gemini format requirement)
+    if contents and contents[0]["role"] == "model":
+        contents.pop(0)
+
+    # Append current message as user turn
+    if contents and contents[-1]["role"] == "user":
+        contents[-1]["parts"][0]["text"] += f"\n{user_message}"
+    else:
+        contents.append({"role": "user", "parts": [{"text": user_message}]})
+
+    payload = {
+        "systemInstruction": {
+            "parts": [{"text": system_instruction}]
+        },
+        "contents": contents,
+        "generationConfig": {
+            "temperature": 0.7,
+            "maxOutputTokens": 600,
+        },
+    }
+
+    url = f"{settings.GEMINI_URL}/{settings.GEMINI_MODEL}:generateContent?key={settings.GEMINI_API_KEY}"
+
+    try:
+        with httpx.Client(timeout=15.0) as client:
+            res = client.post(url, json=payload)
+            if res.status_code == 200:
+                data = res.json()
+                candidates = data.get("candidates") or []
+                if candidates:
+                    parts = candidates[0].get("content", {}).get("parts", [])
+                    if parts and parts[0].get("text"):
+                        return parts[0]["text"].strip()
+            else:
+                log.warning("Gemini API error HTTP %d: %s", res.status_code, res.text[:200])
+                return None
+    except Exception as exc:
+        log.warning("Failed to call Gemini API: %s", exc)
+        return None
+
+    return None
 
 
 def generate_response(
@@ -49,6 +160,23 @@ def generate_response(
             "engine": ENGINE_SAFETY,
             "safety": safety,
         }
+
+    # ── Try Google Gemini if configured ──
+    if settings.COMPANION_ENGINE == "gemini" and settings.GEMINI_API_KEY:
+        gemini_reply = _call_gemini(
+            user_message=user_message,
+            entries=entries,
+            ml_trend=ml_trend,
+            ml_cluster=ml_cluster,
+            ml_anomaly=ml_anomaly,
+            conversation_history=conversation_history,
+        )
+        if gemini_reply:
+            return {
+                "reply": gemini_reply,
+                "engine": ENGINE_GEMINI,
+                "safety": safety,
+            }
 
     msg_lower = user_message.lower().strip()
     clean_msg = msg_lower.rstrip("!.?")

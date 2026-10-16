@@ -131,11 +131,14 @@ class Settings(BaseSettings):
     EMOTION_MODEL_FALLBACK: str = "bhadresh-savani/distilbert-base-uncased-emotion"
     SENTIMENT_MODEL: str = "distilbert-base-uncased-finetuned-sst-2-english"
 
-    COMPANION_ENGINE: Literal["local", "template", "ollama", "claude"] = "local"
+    COMPANION_ENGINE: Literal["local", "template", "ollama", "claude", "gemini"] = "gemini"
     COMPANION_MODEL: str = "google/flan-t5-base"
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_MODEL: str = "llama3.2"
     ANTHROPIC_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    GEMINI_MODEL: str = "gemini-1.5-flash"
+    GEMINI_URL: str = "https://generativelanguage.googleapis.com/v1beta/models"
     HF_HOME: str = ""
 
     # ------------------------------------------------------- geo (no default)

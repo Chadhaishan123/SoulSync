@@ -23,6 +23,7 @@ export interface CompanionSendPayload {
 export interface CompanionResponse {
   reply: string
   session_id: number
+  engine?: string
   emotion_detected?: string
   data_context?: string
 }
