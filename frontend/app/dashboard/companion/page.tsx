@@ -313,7 +313,10 @@ export default function CompanionPage() {
           </div>
           <div>
             <p className="text-sm font-bold text-foreground">SoulSync Companion</p>
-            <p className="text-[10px] text-muted-foreground">Data-grounded AI · FLAN-T5</p>
+            <p className="text-[10px] text-emerald-500 font-medium flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Empathetic Presence · Always here for you
+            </p>
           </div>
         </div>
 
@@ -322,7 +325,7 @@ export default function CompanionPage() {
           {loadingHistory && messages.length === 0 && (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
               <div className="w-8 h-8 border-2 border-soul-purple border-t-transparent rounded-full animate-spin" />
-              <p className="text-xs text-muted-foreground">Loading conversation history...</p>
+              <p className="text-xs text-muted-foreground">Connecting to your safe space...</p>
             </div>
           )}
 
@@ -331,26 +334,25 @@ export default function CompanionPage() {
               <div className="w-16 h-16 rounded-2xl bg-soul-coral/10 flex items-center justify-center">
                 <MessageSquare className="w-8 h-8 text-soul-coral" />
               </div>
-              <h3 className="text-lg font-bold text-foreground">Chat with your Companion</h3>
-              <p className="text-sm text-muted-foreground max-w-sm">
-                Ask about your patterns, mood trends, sleep quality, or anything on your mind.
-                Responses are grounded in your actual data.
+              <h3 className="text-lg font-bold text-foreground">A safe space just for you</h3>
+              <p className="text-sm text-muted-foreground max-w-md">
+                Talk about how your day really felt, unburden whatever is on your heart, or just sit quietly together. No judgment, no lectures, just a caring presence.
               </p>
               <div className="flex flex-wrap gap-2 justify-center mt-3 max-w-lg">
                 {[
-                  "I'm feeling anxious right now",
-                  "Guide me through a calming breath",
-                  "Why has my mood been low?",
-                  "What patterns do you see?",
-                  "Help me reframe an overwhelming thought",
-                  "How can I sleep better tonight?",
+                  "I've had a really overwhelming day",
+                  "Can we just talk? I'm feeling a bit lonely",
+                  "My mind won't stop racing tonight",
+                  "I'm feeling stuck and exhausted",
+                  "Help me unwind and let go of stress",
+                  "I just need someone who truly listens",
                 ].map((prompt) => (
                   <button
                     key={prompt}
                     onClick={() => handleSend(prompt)}
-                    className="text-xs px-3 py-1.5 rounded-full bg-secondary border border-border/60 text-muted-foreground hover:text-foreground hover:border-soul-purple hover:bg-soul-purple/10 transition-all cursor-pointer"
+                    className="text-xs px-3.5 py-1.5 rounded-full bg-secondary/80 border border-border/60 text-muted-foreground hover:text-foreground hover:border-soul-purple hover:bg-soul-purple/10 transition-all cursor-pointer"
                   >
-                    ✨ {prompt}
+                    💭 {prompt}
                   </button>
                 ))}
               </div>
@@ -409,7 +411,7 @@ export default function CompanionPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask anything about your wellness..."
+              placeholder="Share what's on your heart, or how your day really went..."
               rows={1}
               className="flex-1 px-4 py-2.5 rounded-xl bg-input border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/50 resize-none text-sm"
             />
