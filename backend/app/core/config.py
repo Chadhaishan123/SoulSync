@@ -146,6 +146,13 @@ class Settings(BaseSettings):
     GROQ_URL: str = "https://api.groq.com/openai/v1/chat/completions"
     HF_HOME: str = ""
 
+    # --------------------------------------------------- Digital Twin APIs
+    PINECONE_API_KEY: str = ""
+    PINECONE_INDEX_NAME: str = "soulsync-memories"
+    PINECONE_ENVIRONMENT: str = "us-east-1"
+    TERRA_DEV_ID: str = ""
+    TERRA_API_KEY: str = ""
+
     # ------------------------------------------------------- geo (no default)
     # There is deliberately no DEFAULT_LAT / DEFAULT_CITY here.
     #

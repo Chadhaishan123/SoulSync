@@ -24,6 +24,7 @@ from app.models.user import (
     User,
     UserProfile,
 )
+from app.models.twin import DigitalTwinState
 
 __all__ = [
     "Activity",
@@ -32,6 +33,7 @@ __all__ = [
     "ConversationMessage",
     "ConversationSession",
     "DetectedPattern",
+    "DigitalTwinState",
     "EnvironmentSnapshot",
     "GratitudeItem",
     "JournalAnalysis",

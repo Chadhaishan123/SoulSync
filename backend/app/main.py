@@ -14,7 +14,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.api.v1 import auth, checkins, companion, environment, insights, journal, recommendations, sleep, users
+from app.api.v1 import auth, checkins, companion, environment, insights, journal, recommendations, sleep, twin, users
 from app.core.config import settings
 from app.core.limiter import SLOWAPI_AVAILABLE, limiter
 from app.db.session import init_db
@@ -131,6 +131,8 @@ def create_app() -> FastAPI:
     app.include_router(insights.router, prefix=settings.API_V1_STR)
     app.include_router(recommendations.router, prefix="/api")
     app.include_router(recommendations.router, prefix=settings.API_V1_STR)
+    app.include_router(twin.router, prefix="/api")
+    app.include_router(twin.router, prefix=settings.API_V1_STR)
 
     @app.get("/", tags=["meta"])
     def root() -> dict:

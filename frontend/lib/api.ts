@@ -291,6 +291,69 @@ export const api = {
         "/api/v1/environment/current"
       ),
   },
+
+  twin: {
+    simulate: (scenario: string) =>
+      request<{
+        scenario: string
+        projected_mood_delta: number
+        projected_stress_delta: number
+        energy_trajectory: string
+        narrative: string
+        countermeasure: string
+        confidence: number
+      }>("/api/twin/simulate", {
+        method: "POST",
+        body: { scenario },
+      }),
+    recallMemories: (query: string) =>
+      request<{
+        engine: string
+        total_memories: number
+        memories: Array<{
+          id: string
+          date: string
+          topic: string
+          summary: string
+          emotional_resonance: string
+          relevance_score: number
+        }>
+      }>("/api/twin/memories/recall", {
+        method: "POST",
+        body: { query },
+      }),
+    biometrics: () =>
+      request<{
+        connected: boolean
+        provider: string
+        resting_heart_rate: number
+        hrv_ms: number
+        recovery_score: number
+        deep_sleep_pct: number
+        steps_today: number
+        vagal_tone_status: string
+      }>("/api/twin/biometrics"),
+    syncBiometrics: (payload: { provider?: string; resting_heart_rate?: number; hrv_ms?: number; steps?: number }) =>
+      request<any>("/api/twin/biometrics/sync", {
+        method: "POST",
+        body: payload,
+      }),
+    getAvatar: () =>
+      request<{
+        avatar_url: string | null
+        aura_style: string
+        current_pattern: string
+      }>("/api/twin/avatar"),
+    updateAvatar: (avatar_url: string) =>
+      request<{
+        avatar_url: string | null
+        aura_style: string
+        current_pattern: string
+      }>("/api/twin/avatar", {
+        method: "POST",
+        body: { avatar_url },
+      }),
+  },
 }
 
 export { ApiError, clearTokens, setTokens, getToken }
