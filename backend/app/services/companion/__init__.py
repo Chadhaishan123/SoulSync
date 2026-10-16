@@ -243,30 +243,35 @@ def _call_groq(
     else:
         messages.append({"role": "user", "content": user_message})
 
-    payload = {
-        "model": settings.GROQ_MODEL,
-        "messages": messages,
-        "temperature": 0.85,
-        "max_tokens": 600,
-    }
+    models_to_try = [settings.GROQ_MODEL]
+    for backup_model in ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "openai/gpt-oss-120b"]:
+        if backup_model not in models_to_try:
+            models_to_try.append(backup_model)
 
     headers = {
         "Authorization": f"Bearer {settings.GROQ_API_KEY}",
         "Content-Type": "application/json",
     }
 
-    try:
-        with httpx.Client(timeout=20.0) as client:
-            res = client.post(settings.GROQ_URL, json=payload, headers=headers)
-            if res.status_code == 200:
-                data = res.json()
-                choices = data.get("choices") or []
-                if choices and choices[0].get("message", {}).get("content"):
-                    return choices[0]["message"]["content"].strip()
-            else:
-                log.warning("Groq API error HTTP %d: %s", res.status_code, res.text[:200])
-    except Exception as exc:
-        log.warning("Failed to call Groq API: %s", exc)
+    for model_name in models_to_try:
+        payload = {
+            "model": model_name,
+            "messages": messages,
+            "temperature": 0.85,
+            "max_tokens": 600,
+        }
+        try:
+            with httpx.Client(timeout=20.0) as client:
+                res = client.post(settings.GROQ_URL, json=payload, headers=headers)
+                if res.status_code == 200:
+                    data = res.json()
+                    choices = data.get("choices") or []
+                    if choices and choices[0].get("message", {}).get("content"):
+                        return choices[0]["message"]["content"].strip()
+                else:
+                    log.warning("Groq API error (%s) HTTP %d: %s", model_name, res.status_code, res.text[:200])
+        except Exception as exc:
+            log.warning("Failed to call Groq API (%s): %s", model_name, exc)
 
     return None
 
