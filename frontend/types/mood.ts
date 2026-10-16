@@ -8,6 +8,7 @@ export interface MoodEntry {
   primary_emotion: string
   context_tags: string[]
   notes: string | null
+  note?: string | null
   local_date: string
   recorded_at: string
 }

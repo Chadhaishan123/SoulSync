@@ -20,14 +20,27 @@ interface MoodTrendChartProps {
 }
 
 export default function MoodTrendChart({ data, height = 250, className = "" }: MoodTrendChartProps) {
-  const chartData = data.map((entry) => ({
+  // Sort chronologically (oldest to newest)
+  const sorted = [...data].sort(
+    (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime()
+  )
+
+  let chartData = sorted.map((entry) => ({
     date: formatShortDate(entry.recorded_at),
     mood: entry.mood_score,
     stress: entry.stress_level,
     energy: entry.energy_level,
   }))
 
-  if (chartData.length === 0) {
+  // If only 1 data point, extend it slightly so Recharts Area can render a visible line/fill
+  if (chartData.length === 1) {
+    chartData = [
+      { ...chartData[0], date: "Start" },
+      { ...chartData[0], date: chartData[0].date },
+    ]
+  }
+
+  if (data.length === 0) {
     return (
       <div className={`flex items-center justify-center h-[${height}px] text-sm text-muted-foreground ${className}`}>
         No mood data yet. Complete a daily check-in to see trends.
