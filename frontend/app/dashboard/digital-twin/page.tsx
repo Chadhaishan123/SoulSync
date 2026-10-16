@@ -755,12 +755,12 @@ export default function DigitalTwinPage() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md p-6 rounded-2xl bg-card border border-border shadow-2xl space-y-4"
+              className="w-full max-w-lg p-6 rounded-2xl bg-card border border-border shadow-2xl space-y-5"
             >
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                   <Compass className="w-5 h-5 text-soul-purple" />
-                  3D Ready Player Me Avatar
+                  Select or Customize Digital Twin Avatar
                 </h3>
                 <button
                   onClick={() => setShowAvatarModal(false)}
@@ -770,37 +770,87 @@ export default function DigitalTwinPage() {
                 </button>
               </div>
 
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Connect your full-body 3D Ready Player Me avatar. You can create your custom photorealistic 3D avatar for free at Ready Player Me, copy the avatar .glb link, and paste it below.
-              </p>
-
+              {/* Instant 1-Click Presets */}
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-foreground">Avatar .glb URL</label>
+                <label className="text-xs font-semibold text-foreground block">
+                  Instant Presets (Click to Select)
+                </label>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {[
+                    { name: "Harmonic", url: "https://api.dicebear.com/7.x/notionists/svg?seed=HarmonicSage" },
+                    { name: "Oracle", url: "https://api.dicebear.com/7.x/bottts/svg?seed=CyberOracle" },
+                    { name: "Zen", url: "https://api.dicebear.com/7.x/adventurer/svg?seed=ZenExplorer" },
+                    { name: "Cosmic", url: "https://api.dicebear.com/7.x/lorelei/svg?seed=CosmicMind" },
+                    { name: "Nomad", url: "https://api.dicebear.com/7.x/personas/svg?seed=SereneNomad" },
+                    { name: "Living Orb", url: "" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => {
+                        setAvatarInput(preset.url)
+                        setAvatarUrl(preset.url)
+                      }}
+                      className={`p-2 rounded-xl border text-center transition-all flex flex-col items-center gap-1.5 ${
+                        (avatarInput === preset.url || (!avatarInput && !preset.url))
+                          ? "border-soul-purple bg-soul-purple/10 shadow-glow-sm"
+                          : "border-border/50 hover:border-border bg-muted/20"
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-full overflow-hidden bg-muted/50 flex items-center justify-center">
+                        {preset.url ? (
+                          <img src={preset.url} alt={preset.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <Dna className="w-5 h-5 text-soul-teal" />
+                        )}
+                      </div>
+                      <span className="text-[10px] font-medium text-foreground truncate w-full">
+                        {preset.name}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Custom URL Input */}
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-foreground">Custom 3D / Image Avatar URL</label>
                 <input
                   type="text"
                   value={avatarInput}
                   onChange={(e) => setAvatarInput(e.target.value)}
-                  placeholder="https://models.readyplayer.me/64b5...glb"
+                  placeholder="https://... or paste Ready Player Me .glb link"
                   className="w-full px-3 py-2 text-sm rounded-xl bg-muted/40 border border-border focus:border-soul-purple focus:outline-none transition-all placeholder:text-muted-foreground/60"
                 />
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <a
-                  href="https://readyplayer.me/avatar"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-soul-teal hover:underline flex items-center gap-1 font-medium"
-                >
-                  Create free 3D avatar <ExternalLink className="w-3 h-3" />
-                </a>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-border/40">
+                <div className="flex items-center gap-3 text-xs">
+                  <a
+                    href="https://readyplayer.me/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-soul-teal hover:underline flex items-center gap-1 font-medium"
+                  >
+                    Ready Player Me <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <span className="text-muted-foreground">•</span>
+                  <a
+                    href="https://dicebear.com/playground/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-soul-teal hover:underline flex items-center gap-1 font-medium"
+                  >
+                    DiceBear Studio <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
 
-                <div className="flex gap-2">
+                <div className="flex gap-2 w-full sm:w-auto justify-end">
                   <Button variant="ghost" size="sm" onClick={() => setShowAvatarModal(false)}>
                     Cancel
                   </Button>
                   <Button variant="primary" size="sm" onClick={handleSaveAvatar}>
-                    Save Avatar
+                    Apply Avatar
                   </Button>
                 </div>
               </div>
