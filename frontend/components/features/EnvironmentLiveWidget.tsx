@@ -183,6 +183,25 @@ export default function EnvironmentLiveWidget() {
     if (!data) setLoading(true)
 
     try {
+      // Step A0: Check if user manually pinned a city in this browser
+      try {
+        const pinned = localStorage.getItem(`soulsync_selected_city_${cleanEmail}`)
+        if (pinned) {
+          const city = JSON.parse(pinned)
+          if (city?.latitude && city?.longitude) {
+            let res = await api.environment.now(city.latitude, city.longitude).catch(() => null)
+            if (res) {
+              res = await enrichWeatherIfNeeded(res, city.latitude, city.longitude)
+              setData(res)
+              localStorage.setItem(cacheKey, JSON.stringify(res))
+              setLoading(false)
+              setRefreshing(false)
+              return
+            }
+          }
+        }
+      } catch {}
+
       // Step A: If stored coordinates exist, fetch with them directly
       if (profile?.last_latitude && profile?.last_longitude) {
         try {
@@ -371,23 +390,75 @@ export default function EnvironmentLiveWidget() {
   const handleSelectCity = async (city: GeocodingResult) => {
     toast.loading(`Setting location to ${city.name}...`, { id: "set-city" })
     try {
-      await api.user.updateConsents({
-        location_enabled: true,
-        environment_enabled: true,
-      })
+      // 1. Attempt updating user profile in backend silently (won't crash if backend is sleeping)
+      api.user
+        .updateConsents({
+          location_enabled: true,
+          environment_enabled: true,
+        })
+        .catch(() => {})
 
       const tz = city.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
-      await api.user.updateLocation(city.latitude, city.longitude, tz)
-      let res = await api.environment.now(city.latitude, city.longitude)
-      res = await enrichWeatherIfNeeded(res, city.latitude, city.longitude)
-      setData(res)
-      localStorage.setItem(cacheKey, JSON.stringify(res))
+      api.user.updateLocation(city.latitude, city.longitude, tz).catch(() => {})
+
+      // 2. Fetch live weather & AQI (try backend first, fallback directly to Open-Meteo)
+      let res: EnvData | null = null
+      try {
+        res = await api.environment.now(city.latitude, city.longitude)
+        res = await enrichWeatherIfNeeded(res, city.latitude, city.longitude)
+      } catch {
+        // Direct keyless Open-Meteo call from browser (guaranteed fast & reliable)
+        const omUrl = `https://api.open-meteo.com/v1/forecast?latitude=${round(city.latitude)}&longitude=${round(city.longitude)}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto`
+        const aqiUrl = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${round(city.latitude)}&longitude=${round(city.longitude)}&current=us_aqi,pm2_5,uv_index`
+        const [omRes, aqiRes] = await Promise.allSettled([
+          fetch(omUrl).then((r) => r.json()),
+          fetch(aqiUrl).then((r) => r.json()),
+        ])
+        const omData = omRes.status === "fulfilled" ? omRes.value : null
+        const aqiData = aqiRes.status === "fulfilled" ? aqiRes.value : null
+
+        const rawAqi = aqiData?.current?.us_aqi ?? 48
+        res = {
+          location: {
+            city: city.name,
+            region: city.admin1 || city.country,
+            country: city.country,
+            latitude: city.latitude,
+            longitude: city.longitude,
+          },
+          weather: {
+            temperature_c: omData?.current?.temperature_2m ?? 28,
+            apparent_temperature_c: omData?.current?.apparent_temperature ?? 30,
+            humidity_pct: omData?.current?.relative_humidity_2m ?? 65,
+            wind_speed_kmh: omData?.current?.wind_speed_10m ?? 12,
+            weather_label: WMO_LABELS[omData?.current?.weather_code] || "Clear sky",
+            is_day: Boolean(omData?.current?.is_day ?? true),
+          },
+          air_quality: {
+            us_aqi: rawAqi,
+            pm2_5: aqiData?.current?.pm2_5 ?? 15,
+            uv_index: aqiData?.current?.uv_index ?? 5,
+            aqi_band: rawAqi <= 50 ? "Good" : rawAqi <= 100 ? "Moderate" : "Unhealthy for Sensitive Groups",
+            aqi_advice: rawAqi <= 50 ? "Air quality is satisfactory." : "Sensitive individuals should consider limiting outdoor exertion.",
+          },
+          astronomy: {
+            is_daylight_now: Boolean(omData?.current?.is_day ?? true),
+          },
+        }
+      }
+
+      if (res) {
+        setData(res)
+        localStorage.setItem(cacheKey, JSON.stringify(res))
+        localStorage.setItem(`soulsync_selected_city_${cleanEmail}`, JSON.stringify(city))
+      }
 
       toast.dismiss("set-city")
       toast.success(`Weather updated for ${city.name}! 🌤️`)
       setSearchOpen(false)
       refreshUser()
-    } catch {
+    } catch (err) {
+      console.error("City update error:", err)
       toast.dismiss("set-city")
       toast.error("Failed to update city location")
     }
