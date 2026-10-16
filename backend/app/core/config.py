@@ -113,6 +113,15 @@ class Settings(BaseSettings):
     OPENCAGE_URL: str = "https://api.opencagedata.com/geocode/v1/json"
     TOMORROW_IO_API_KEY: str = ""
     TOMORROW_IO_URL: str = "https://api.tomorrow.io/v4/weather/realtime"
+    # World Air Quality Index project: real ground-station AQI. Open-Meteo's
+    # AQI is a CAMS satellite/model estimate, which can sit well below what
+    # monitors actually record in dense Indian cities. When a token is set,
+    # the nearest station's reading replaces the modelled AQI — but only if
+    # that station is close enough to plausibly describe the user's air.
+    # Free token: https://aqicn.org/data-platform/token/
+    WAQI_API_TOKEN: str = ""
+    WAQI_URL: str = "https://api.waqi.info/feed"
+    WAQI_MAX_STATION_KM: float = 50.0
 
     # ----------------------------------------------------------- nlp / ai
     ENABLE_TRANSFORMER_NLP: bool = True

@@ -45,6 +45,9 @@ interface EnvData {
     aqi_advice?: string
     pm2_5?: number
     uv_index?: number
+    aqi_source?: "waqi" | "open-meteo" | null
+    aqi_station?: string | null
+    aqi_station_distance_km?: number | null
   }
   astronomy: {
     is_daylight_now?: boolean
@@ -705,6 +708,22 @@ export default function EnvironmentLiveWidget() {
             <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
               PM2.5: {air?.pm2_5 ? `${air.pm2_5.toFixed(1)} µg/m³` : "Low"}
             </p>
+            {air?.aqi_source && (
+              <p
+                className="text-[10px] text-muted-foreground/80 mt-0.5 truncate"
+                title={
+                  air.aqi_source === "waqi"
+                    ? `Measured at ground station: ${air.aqi_station ?? "nearby"}`
+                    : "Estimated by the CAMS atmospheric model"
+                }
+              >
+                {air.aqi_source === "waqi"
+                  ? `📍 ${air.aqi_station?.split(",")[0] ?? "Station"}${
+                      air.aqi_station_distance_km != null ? ` · ${air.aqi_station_distance_km} km` : ""
+                    }`
+                  : "🛰️ Satellite model"}
+              </p>
+            )}
           </div>
 
           {/* Humidity */}

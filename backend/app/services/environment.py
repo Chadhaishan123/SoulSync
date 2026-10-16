@@ -15,6 +15,9 @@ Providers, all real and attributed in the response:
   * OpenCage                     — reverse geocode, preferred when a key exists
   * Tomorrow.io                  — pollen outside the European CAMS domain,
                                    only when a key exists
+  * WAQI (aqicn.org)             — ground-station AQI, preferred over the
+                                   CAMS model estimate when a token exists
+                                   and a station is nearby
 
 Two behaviours worth knowing about:
 
@@ -34,6 +37,7 @@ from __future__ import annotations
 import asyncio
 import datetime as dt
 import logging
+import math
 import time
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -330,6 +334,8 @@ def describe_error(exc: BaseException) -> str:
     """A short, non-leaky reason string for the client."""
     if isinstance(exc, HolidayNotPublished):
         return HOLIDAY_NOT_PUBLISHED_MSG
+    if type(exc).__name__ == "WaqiError":
+        return f"WAQI: {exc}"[:120]
     if isinstance(exc, httpx.HTTPStatusError):
         return f"upstream returned HTTP {exc.response.status_code}"
     if isinstance(exc, httpx.TimeoutException):
@@ -486,6 +492,7 @@ def parse_air_quality_now(payload: Dict[str, Any]) -> AirQualityNow:
         pollen_index=max(present) if present else None,
         aqi_band=band,
         aqi_advice=advice,
+        aqi_source="open-meteo" if us_aqi is not None else None,
     )
 
 
@@ -757,6 +764,89 @@ async def fetch_pollen_index(lat: float, lon: float) -> Optional[float]:
     return max(present) if present else None
 
 
+# ------------------------------------------------------------- station AQI
+
+
+class WaqiError(Exception):
+    """WAQI answered HTTP 200 but with `status != "ok"` (bad token, quota)."""
+
+
+def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp = p2 - p1
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(math.sqrt(a))
+
+
+async def fetch_waqi(lat: float, lon: float) -> Tuple[Dict[str, Any], int]:
+    """
+    Nearest ground-station reading from the World Air Quality Index project.
+
+    WAQI reports failures as HTTP 200 with `status: "error"`, so the status is
+    checked explicitly and the error body is evicted from the cache — otherwise
+    a transient quota error would be served for the full TTL.
+    """
+    key = _coord_key("waqi", lat, lon)
+    payload, age = await _cached_json(
+        key,
+        settings.ENV_CACHE_TTL_SECONDS,
+        f"{settings.WAQI_URL}/geo:{round(lat, 4)};{round(lon, 4)}/",
+        {"token": settings.WAQI_API_TOKEN},
+    )
+    if not isinstance(payload, dict) or payload.get("status") != "ok":
+        _cache.pop(key, None)
+        reason = payload.get("data") if isinstance(payload, dict) else None
+        raise WaqiError(str(reason) if reason else "WAQI returned an error")
+    return payload, age
+
+
+def apply_station_aqi(
+    air: AirQualityNow, payload: Dict[str, Any], lat: float, lon: float
+) -> bool:
+    """
+    Overwrite the modelled AQI with a nearby station's measured AQI.
+
+    Only `us_aqi` (and its band/advice) is taken. WAQI's per-pollutant `iaqi`
+    values are AQI *sub-indices*, not µg/m³ concentrations, so copying them
+    into `pm2_5` / `pm10` would silently mislabel units. Those fields keep
+    their Open-Meteo concentrations.
+
+    Returns False — leaving the Open-Meteo value in place — when the station
+    has no current reading (`aqi: "-"`) or is too far away to describe the
+    user's air.
+    """
+    data = payload.get("data") or {}
+    aqi = _int(data.get("aqi"))
+    if aqi is None:
+        return False
+
+    city = data.get("city") or {}
+    geo = city.get("geo") or []
+    distance: Optional[float] = None
+    if isinstance(geo, list) and len(geo) == 2:
+        s_lat, s_lon = _num(geo[0]), _num(geo[1])
+        if s_lat is not None and s_lon is not None:
+            distance = round(_haversine_km(lat, lon, s_lat, s_lon), 1)
+    if distance is not None and distance > settings.WAQI_MAX_STATION_KM:
+        log.info("WAQI station %.1f km away; keeping modelled AQI", distance)
+        return False
+
+    band, advice = describe_aqi(aqi)
+    air.us_aqi = aqi
+    air.aqi_band = band
+    air.aqi_advice = advice
+    air.aqi_source = "waqi"
+    air.aqi_station = city.get("name") or None
+    air.aqi_station_distance_km = distance
+    return True
+
+
+async def _no_waqi() -> None:
+    return None
+
+
 # ------------------------------------------------------------------- aggregate
 
 
@@ -800,10 +890,12 @@ async def gather_environment(
     """
     sources: List[UpstreamStatus] = []
 
-    weather_result, air_result, geo_result = await asyncio.gather(
+    use_waqi = bool(settings.WAQI_API_TOKEN)
+    weather_result, air_result, geo_result, waqi_result = await asyncio.gather(
         fetch_weather(lat, lon),
         fetch_air_quality(lat, lon),
         reverse_geocode(lat, lon),
+        fetch_waqi(lat, lon) if use_waqi else _no_waqi(),
         return_exceptions=True,
     )
 
@@ -825,6 +917,13 @@ async def gather_environment(
     weather = parse_weather_now(weather_payload) if weather_payload else WeatherNow()
     air = parse_air_quality_now(air_payload) if air_payload else AirQualityNow()
     astronomy = parse_astronomy(weather_payload) if weather_payload else Astronomy()
+
+    # Station AQI is preferred over the model estimate, and also rescues AQI
+    # entirely when the Open-Meteo air-quality call failed.
+    if use_waqi:
+        waqi_payload = unpack(waqi_result, "waqi")
+        if waqi_payload:
+            apply_station_aqi(air, waqi_payload, lat, lon)
 
     if air.pollen_index is None:
         air.pollen_index = await fetch_pollen_index(lat, lon)

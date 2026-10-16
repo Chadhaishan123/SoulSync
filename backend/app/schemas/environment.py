@@ -77,6 +77,12 @@ class AirQualityNow(BaseModel):
     # US EPA band for `us_aqi` and the official advice for that band.
     aqi_band: Optional[str] = None
     aqi_advice: Optional[str] = None
+    # Where `us_aqi` came from: "waqi" (a real ground monitoring station) or
+    # "open-meteo" (CAMS model estimate). None when no AQI is available.
+    aqi_source: Optional[str] = None
+    # Station name and distance, only when `aqi_source == "waqi"`.
+    aqi_station: Optional[str] = None
+    aqi_station_distance_km: Optional[float] = None
 
 
 class Astronomy(BaseModel):
