@@ -8,6 +8,7 @@ import { Brain, ArrowRight, Mail, Lock } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton"
 import toast from "react-hot-toast"
 
 export default function LoginPage() {
@@ -82,6 +83,19 @@ export default function LoginPage() {
           </Link>
           <h2 className="text-2xl font-bold text-foreground">Welcome Back</h2>
           <p className="text-sm text-muted-foreground">Log in to sync with your patterns.</p>
+        </div>
+
+        {/* Google OAuth Login */}
+        <div className="space-y-4">
+          <GoogleSignInButton label="Continue with Google" />
+
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-white/10 w-full" />
+            <span className="bg-card/80 backdrop-blur-sm px-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+              or continue with email
+            </span>
+            <div className="border-t border-white/10 w-full" />
+          </div>
         </div>
 
         {/* Form */}

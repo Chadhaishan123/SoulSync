@@ -152,6 +152,7 @@ class Settings(BaseSettings):
     PINECONE_ENVIRONMENT: str = "us-east-1"
     TERRA_DEV_ID: str = ""
     TERRA_API_KEY: str = ""
+    GOOGLE_CLIENT_ID: str = ""
 
     # ------------------------------------------------------- geo (no default)
     # There is deliberately no DEFAULT_LAT / DEFAULT_CITY here.

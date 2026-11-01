@@ -135,3 +135,8 @@ class AuthResponse(BaseModel):
     # False until onboarding is finished, so the client can route correctly on
     # first login without an extra round trip.
     is_onboarded: bool = False
+
+
+class GoogleLoginRequest(BaseModel):
+    credential: str = Field(min_length=1, description="Google OAuth ID Token JWT")
+    timezone: Optional[str] = Field(default=None, max_length=64)

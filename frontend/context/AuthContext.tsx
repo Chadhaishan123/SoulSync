@@ -11,6 +11,7 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => void
+  loginWithGoogle: (credential: string) => Promise<void>
   refreshUser: () => Promise<void>
 }
 
@@ -205,6 +206,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(me)
   }, [])
 
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+    const data = await api.auth.googleLogin(credential, tz)
+    setTokens(data.tokens.access_token, data.tokens.refresh_token)
+    const me = await api.user.getMe()
+    setUser(me)
+    try {
+      localStorage.setItem("soulsync_last_user", JSON.stringify({ name: me.name, email: me.email }))
+    } catch {}
+  }, [])
+
   const logout = useCallback(() => {
     clearTokens()
     setUser(null)
@@ -222,6 +234,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isAuthenticated: !!user,
         login,
         register,
+        loginWithGoogle,
         logout,
         refreshUser,
       }}

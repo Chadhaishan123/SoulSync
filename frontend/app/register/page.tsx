@@ -8,6 +8,7 @@ import { Brain, ArrowRight, Mail, Lock, User } from "lucide-react"
 import { useAuth } from "@/context/AuthContext"
 import Button from "@/components/ui/Button"
 import Input from "@/components/ui/Input"
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton"
 import PasswordStrength from "@/components/features/PasswordStrength"
 import toast from "react-hot-toast"
 
@@ -90,6 +91,19 @@ export default function RegisterPage() {
           </Link>
           <h2 className="text-2xl font-bold text-foreground">Create Your Account</h2>
           <p className="text-sm text-muted-foreground">Start building your Digital Twin today.</p>
+        </div>
+
+        {/* Google OAuth Signup */}
+        <div className="space-y-4">
+          <GoogleSignInButton label="Sign up with Google" />
+
+          <div className="relative flex items-center justify-center">
+            <div className="border-t border-white/10 w-full" />
+            <span className="bg-card/80 backdrop-blur-sm px-3 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+              or continue with email
+            </span>
+            <div className="border-t border-white/10 w-full" />
+          </div>
         </div>
 
         {/* Form */}

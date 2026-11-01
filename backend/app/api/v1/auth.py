@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import secrets
+import httpx
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select
@@ -42,6 +44,7 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     TokenPair,
     UserPublic,
+    GoogleLoginRequest,
 )
 from app.schemas.common import Message
 
@@ -202,6 +205,101 @@ def login(
     if not verify_password(payload.password, user.password_hash):
         log.warning("Failed login for user_id=%s from %s", user.id, get_client_ip(request))
         raise INVALID_CREDENTIALS
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="This account is deactivated"
+        )
+
+    user.last_login_at = utcnow()
+    db.commit()
+
+    tokens = _issue_token_pair(db, user, request.headers.get("user-agent"))
+    is_onboarded = bool(user.profile and user.profile.onboarded_at)
+
+    return AuthResponse(
+        user=UserPublic.model_validate(user), tokens=tokens, is_onboarded=is_onboarded
+    )
+
+
+@router.post("/google", response_model=AuthResponse)
+def google_login(
+    request: Request,
+    response: Response,
+    payload: GoogleLoginRequest,
+    db: Session = Depends(get_db),
+) -> AuthResponse:
+    """
+    Authenticate or auto-provision a user with a verified Google OAuth ID Token.
+    """
+    try:
+        with httpx.Client(timeout=10.0) as client:
+            resp = client.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": payload.credential},
+            )
+            if resp.status_code != 200:
+                log.warning("Google token verification failed with status %d: %s", resp.status_code, resp.text)
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid or expired Google authentication token",
+                )
+            token_info = resp.json()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.error("Error communicating with Google token verification service: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to verify credentials with Google. Please try again.",
+        )
+
+    # Validate Audience if configured
+    aud = token_info.get("aud")
+    if settings.GOOGLE_CLIENT_ID and aud != settings.GOOGLE_CLIENT_ID:
+        log.warning("Google token audience mismatch: expected %s, got %s", settings.GOOGLE_CLIENT_ID, aud)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google Client ID does not match this application.",
+        )
+
+    # Validate Email & verification
+    email_raw = token_info.get("email")
+    if not email_raw:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google account did not return a valid email address.",
+        )
+
+    email = _normalise_email(email_raw)
+    name = token_info.get("name") or token_info.get("given_name") or email.split("@")[0].capitalize()
+
+    # Find or provision user
+    user = db.scalar(select(User).where(User.email == email))
+
+    if user is None:
+        user = User(
+            name=name[:120],
+            email=email,
+            password_hash=hash_password(secrets.token_urlsafe(32)),
+        )
+        db.add(user)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            user = db.scalar(select(User).where(User.email == email))
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Failed to initialize user account",
+                )
+        else:
+            db.refresh(user)
+            profile = UserProfile(user_id=user.id, timezone=payload.timezone or "UTC")
+            db.add(profile)
+            db.commit()
+            log.info("New user registered via Google Sign-In: user_id=%s, email=%s", user.id, email)
 
     if not user.is_active:
         raise HTTPException(

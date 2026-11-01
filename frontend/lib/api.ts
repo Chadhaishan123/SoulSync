@@ -171,6 +171,11 @@ export const api = {
         "/api/v1/auth/forgot-password",
         { method: "POST", body: { email } }
       ),
+    googleLogin: (credential: string, timezone?: string) =>
+      request<import("@/types/auth").AuthResponse>("/api/v1/auth/google", {
+        method: "POST",
+        body: { credential, timezone },
+      }),
     resetPassword: (token: string, password: string) =>
       request<{ detail: string }>("/api/v1/auth/reset-password", {
         method: "POST",
