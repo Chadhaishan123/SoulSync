@@ -19,7 +19,9 @@ declare global {
 }
 
 export const FIREBASE_CONFIG = {
-  apiKey: (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "").trim().replace(/^["']|["']$/g, ""),
+  apiKey:
+    (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "").trim().replace(/^["']|["']$/g, "") ||
+    "AIzaSyC2N1y6E01Ga6EhM40Z5Nj6_EX2laMAMvo",
   authDomain:
     (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "").trim() ||
     "soulsync-b23fe.firebaseapp.com",
@@ -32,7 +34,10 @@ export const FIREBASE_CONFIG = {
   messagingSenderId:
     (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "").trim() ||
     "30766783030",
-  appId: (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "").trim(),
+  appId:
+    (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "").trim() ||
+    "1:30766783030:web:775be2db25e7fcc6a89697",
+  measurementId: "G-QWMDER9V2W",
 }
 
 export function isFirebaseConfigured(): boolean {
