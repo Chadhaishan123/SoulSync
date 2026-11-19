@@ -78,7 +78,9 @@ def init_db() -> None:
     nothing.
     """
     import app.models  # noqa: F401
+    from app.db.firebase_sync import register_firestore_listeners
 
     Base.metadata.create_all(bind=engine)
-    backend = "SQLite" if settings.is_sqlite else "PostgreSQL"
+    register_firestore_listeners()
+    backend = "SQLite + Firebase Firestore Sync" if settings.is_sqlite else "PostgreSQL + Firebase Firestore Sync"
     log.info("Database ready (%s).", backend)

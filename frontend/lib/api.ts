@@ -1,3 +1,5 @@
+import { syncDocumentToFirestore } from "@/lib/firebase"
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
 type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE"
@@ -209,8 +211,11 @@ export const api = {
   },
 
   checkins: {
-    create: (data: import("@/types/mood").CheckinPayload) =>
-      request("/api/v1/users/me/checkins", { method: "POST", body: data }),
+    create: async (data: import("@/types/mood").CheckinPayload) => {
+      const res = await request<any>("/api/v1/users/me/checkins", { method: "POST", body: data })
+      syncDocumentToFirestore("soulsync_checkins", `checkin_${Date.now()}`, { ...data, ...(res || {}) }).catch(() => {})
+      return res
+    },
     list: (params?: Record<string, string>) => {
       const qs = params ? `?${new URLSearchParams(params)}` : ""
       return request<import("@/types/mood").MoodEntry[]>(`/api/v1/users/me/checkins${qs}`)
@@ -218,11 +223,14 @@ export const api = {
   },
 
   journal: {
-    create: (data: import("@/types/journal").JournalCreatePayload) =>
-      request<import("@/types/journal").JournalEntry>("/api/v1/users/me/journal", {
+    create: async (data: import("@/types/journal").JournalCreatePayload) => {
+      const res = await request<import("@/types/journal").JournalEntry>("/api/v1/users/me/journal", {
         method: "POST",
         body: data,
-      }),
+      })
+      syncDocumentToFirestore("soulsync_journals", `journal_${res?.id || Date.now()}`, { ...data, ...(res || {}) }).catch(() => {})
+      return res
+    },
     list: () =>
       request<import("@/types/journal").JournalEntry[]>("/api/v1/users/me/journal"),
     analyze: (entryId: number) =>

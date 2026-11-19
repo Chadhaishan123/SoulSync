@@ -232,45 +232,30 @@ def google_login(
     """
     Authenticate or auto-provision a user with a verified Google OAuth ID Token.
     """
-    cred = payload.credential.strip()
-    try:
-        with httpx.Client(timeout=10.0) as client:
-            # Only Google-signed ID tokens are accepted. Google's tokeninfo
-            # endpoint verifies the signature and expiry for us.
-            resp = client.get(
-                "https://oauth2.googleapis.com/tokeninfo",
-                params={"id_token": cred},
-            )
-            if resp.status_code != 200:
-                log.warning("Google token verification failed with status %d: %s", resp.status_code, resp.text)
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid or expired Google authentication token",
-                )
-            token_info = resp.json()
-    except HTTPException:
-        raise
-    except Exception as exc:
-        log.error("Error communicating with Google token verification service: %s", exc)
+    from app.db.firebase_sync import verify_firebase_or_google_id_token
+
+    token_info = verify_firebase_or_google_id_token(payload.credential)
+    if token_info is None:
         raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to verify credentials with Google. Please try again.",
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired Firebase / Google authentication token",
         )
 
-    # The token must have been issued for THIS app, otherwise a token minted
-    # for any other Google app could be replayed here to sign in.
+    # The token must have been issued for THIS app (either our Google OAuth Client ID
+    # or our Firebase project ID soulsync-511804).
     default_cid = "231866221016-rdpt228qmqcq0jmgr8h9qup8kcrbe6s8.apps.googleusercontent.com"
     configured_cid = (settings.GOOGLE_CLIENT_ID or "").strip().strip('"').strip("'")
-    allowed_cids = {default_cid}
+    firebase_pid = (settings.FIREBASE_PROJECT_ID or "soulsync-511804").strip()
+    allowed_cids = {default_cid, firebase_pid, "soulsync-511804"}
     if configured_cid and configured_cid.endswith(".apps.googleusercontent.com"):
         allowed_cids.add(configured_cid)
     if token_info.get("aud") not in allowed_cids:
-        log.warning("Google token audience mismatch: expected one of %s, got %s", allowed_cids, token_info.get("aud"))
+        log.warning("Firebase/Google token audience mismatch: expected one of %s, got %s", allowed_cids, token_info.get("aud"))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Google Client ID does not match this application.",
+            detail="Firebase / Google Client ID does not match this application.",
         )
-    if str(token_info.get("email_verified", "")).lower() != "true":
+    if not token_info.get("email_verified"):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Your Google email address is not verified.",

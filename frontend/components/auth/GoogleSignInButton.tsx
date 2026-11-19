@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext"
 import toast from "react-hot-toast"
 import { motion, AnimatePresence } from "framer-motion"
 import { ExternalLink, Check, Copy, AlertCircle, X, Sparkles } from "lucide-react"
+import { isFirebaseConfigured, signInWithFirebaseGoogle } from "@/lib/firebase"
 
 declare global {
   interface Window {
@@ -40,7 +41,8 @@ export default function GoogleSignInButton({
 
   const DEFAULT_GOOGLE_CLIENT_ID =
     "231866221016-rdpt228qmqcq0jmgr8h9qup8kcrbe6s8.apps.googleusercontent.com"
-  const clientId = DEFAULT_GOOGLE_CLIENT_ID
+  const useFirebaseAuth = isFirebaseConfigured()
+  const clientId = useFirebaseAuth ? "" : DEFAULT_GOOGLE_CLIENT_ID
   const [gsiReady, setGsiReady] = useState(false)
 
   // Keep the latest handler in a ref so Google's one-time callback never
@@ -116,8 +118,26 @@ export default function GoogleSignInButton({
     return () => script?.removeEventListener("load", renderGoogleButton)
   }, [clientId, label])
 
-  // Only used when no Client ID is configured: explains how to set it up.
-  const handleClick = () => setShowConfigModal(true)
+  // When Firebase Auth is configured, open Firebase Google Popup directly;
+  // otherwise open setup guide modal if no Client ID is present.
+  const handleClick = async () => {
+    if (useFirebaseAuth) {
+      setLoading(true)
+      try {
+        const fbRes = await signInWithFirebaseGoogle()
+        await loginWithGoogle(fbRes.idToken)
+        toast.success("Signed in with Firebase Google Auth! Welcome 🧠")
+        router.push("/dashboard")
+      } catch (err: any) {
+        console.error("Firebase Google Auth error:", err)
+        toast.error(err?.message || "Firebase Google Sign-In failed")
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+    setShowConfigModal(true)
+  }
 
   const copyConfigHelp = () => {
     const guide = `SoulSync Google OAuth Setup:
