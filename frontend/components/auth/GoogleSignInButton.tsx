@@ -38,45 +38,14 @@ export default function GoogleSignInButton({
   const [copied, setCopied] = useState(false)
   const googleBtnContainerRef = useRef<HTMLDivElement>(null)
 
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || ""
+  const DEFAULT_GOOGLE_CLIENT_ID =
+    "231866221016-rdpt228qmqcq0jmgr8h9qup8kcrbe6s8.apps.googleusercontent.com"
+  const clientId = DEFAULT_GOOGLE_CLIENT_ID
+  const [gsiReady, setGsiReady] = useState(false)
 
-  useEffect(() => {
-    // If client ID is present, load Google Identity Services script
-    if (!clientId) return
-
-    if (document.getElementById("google-gsi-client")) return
-
-    const script = document.createElement("script")
-    script.id = "google-gsi-client"
-    script.src = "https://accounts.google.com/gsi/client"
-    script.async = true
-    script.defer = true
-    script.onload = () => {
-      try {
-        if (window.google?.accounts?.id) {
-          window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: handleGoogleCredentialResponse,
-            auto_select: false,
-            cancel_on_tap_outside: true,
-          })
-
-          if (googleBtnContainerRef.current) {
-            window.google.accounts.id.renderButton(googleBtnContainerRef.current, {
-              theme: "filled_blue",
-              size: "large",
-              text: "continue_with",
-              shape: "pill",
-              width: "100%",
-            })
-          }
-        }
-      } catch (err) {
-        console.error("Failed to initialize Google Sign-In:", err)
-      }
-    }
-    document.body.appendChild(script)
-  }, [clientId])
+  // Keep the latest handler in a ref so Google's one-time callback never
+  // calls a stale closure.
+  const handlerRef = useRef<(response: any) => void>(() => {})
 
   const handleGoogleCredentialResponse = async (response: any) => {
     if (!response?.credential) {
@@ -91,38 +60,64 @@ export default function GoogleSignInButton({
       router.push("/dashboard")
     } catch (err: any) {
       console.error("Backend Google Auth Error:", err)
-      const msg = err?.message || "Google sign-in failed on server"
-      toast.error(msg)
+      toast.error(err?.message || "Google sign-in failed on server")
     } finally {
       setLoading(false)
     }
   }
+  handlerRef.current = handleGoogleCredentialResponse
 
-  const handleClick = () => {
-    if (!clientId) {
-      setShowConfigModal(true)
+  useEffect(() => {
+    if (!clientId) return
+
+    const renderGoogleButton = () => {
+      const container = googleBtnContainerRef.current
+      if (!window.google?.accounts?.id || !container) return
+      try {
+        window.google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (resp: any) => handlerRef.current(resp),
+          auto_select: false,
+          cancel_on_tap_outside: true,
+        })
+        container.innerHTML = ""
+        // GSI requires a pixel width (max 400), not a percentage.
+        const width = Math.min(400, Math.max(200, Math.floor(container.offsetWidth || 320)))
+        window.google.accounts.id.renderButton(container, {
+          theme: "filled_black",
+          size: "large",
+          text: label.toLowerCase().includes("sign up") ? "signup_with" : "continue_with",
+          shape: "pill",
+          logo_alignment: "left",
+          width,
+        })
+        setGsiReady(true)
+      } catch (err) {
+        console.error("Failed to initialize Google Sign-In:", err)
+      }
+    }
+
+    // Script may already be on the page (e.g. navigating login -> register).
+    if (window.google?.accounts?.id) {
+      renderGoogleButton()
       return
     }
 
-    try {
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            // If one-tap prompt couldn't display, trigger fallback or click rendered button
-            const renderedBtn = googleBtnContainerRef.current?.querySelector('div[role="button"]') as HTMLElement
-            if (renderedBtn) {
-              renderedBtn.click()
-            }
-          }
-        })
-      } else {
-        toast.error("Google services are loading, please try again in a moment.")
-      }
-    } catch (err) {
-      console.error("Google Prompt error:", err)
-      setShowConfigModal(true)
+    let script = document.getElementById("google-gsi-client") as HTMLScriptElement | null
+    if (!script) {
+      script = document.createElement("script")
+      script.id = "google-gsi-client"
+      script.src = "https://accounts.google.com/gsi/client"
+      script.async = true
+      script.defer = true
+      document.body.appendChild(script)
     }
-  }
+    script.addEventListener("load", renderGoogleButton)
+    return () => script?.removeEventListener("load", renderGoogleButton)
+  }, [clientId, label])
+
+  // Only used when no Client ID is configured: explains how to set it up.
+  const handleClick = () => setShowConfigModal(true)
 
   const copyConfigHelp = () => {
     const guide = `SoulSync Google OAuth Setup:
@@ -147,9 +142,25 @@ export default function GoogleSignInButton({
   return (
     <>
       <div className={`relative w-full ${className}`}>
-        {/* Hidden container for Google GSI native button fallback */}
-        <div ref={googleBtnContainerRef} className="hidden" aria-hidden="true" />
+        {/* Google's official button renders here when a Client ID is configured */}
+        {clientId && (
+          <div className="relative w-full flex justify-center min-h-[44px]">
+            <div ref={googleBtnContainerRef} className={`w-full flex justify-center ${loading ? "opacity-40 pointer-events-none" : ""}`} />
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <div className="w-4 h-4 border-2 border-soul-purple border-t-transparent rounded-full animate-spin" />
+                Authenticating...
+              </div>
+            )}
+            {!gsiReady && !loading && (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-muted-foreground">
+                Loading Google Sign-In...
+              </div>
+            )}
+          </div>
+        )}
 
+        {!clientId && (
         <button
           type="button"
           onClick={handleClick}
@@ -180,6 +191,7 @@ export default function GoogleSignInButton({
           )}
           <span>{loading ? "Authenticating..." : label}</span>
         </button>
+        )}
       </div>
 
       {/* Setup Guide Modal (Displayed if NEXT_PUBLIC_GOOGLE_CLIENT_ID is not yet set) */}

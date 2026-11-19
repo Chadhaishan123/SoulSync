@@ -232,11 +232,14 @@ def google_login(
     """
     Authenticate or auto-provision a user with a verified Google OAuth ID Token.
     """
+    cred = payload.credential.strip()
     try:
         with httpx.Client(timeout=10.0) as client:
+            # Only Google-signed ID tokens are accepted. Google's tokeninfo
+            # endpoint verifies the signature and expiry for us.
             resp = client.get(
                 "https://oauth2.googleapis.com/tokeninfo",
-                params={"id_token": payload.credential},
+                params={"id_token": cred},
             )
             if resp.status_code != 200:
                 log.warning("Google token verification failed with status %d: %s", resp.status_code, resp.text)
@@ -254,13 +257,23 @@ def google_login(
             detail="Unable to verify credentials with Google. Please try again.",
         )
 
-    # Validate Audience if configured
-    aud = token_info.get("aud")
-    if settings.GOOGLE_CLIENT_ID and aud != settings.GOOGLE_CLIENT_ID:
-        log.warning("Google token audience mismatch: expected %s, got %s", settings.GOOGLE_CLIENT_ID, aud)
+    # The token must have been issued for THIS app, otherwise a token minted
+    # for any other Google app could be replayed here to sign in.
+    default_cid = "231866221016-rdpt228qmqcq0jmgr8h9qup8kcrbe6s8.apps.googleusercontent.com"
+    configured_cid = (settings.GOOGLE_CLIENT_ID or "").strip().strip('"').strip("'")
+    allowed_cids = {default_cid}
+    if configured_cid and configured_cid.endswith(".apps.googleusercontent.com"):
+        allowed_cids.add(configured_cid)
+    if token_info.get("aud") not in allowed_cids:
+        log.warning("Google token audience mismatch: expected one of %s, got %s", allowed_cids, token_info.get("aud"))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Google Client ID does not match this application.",
+        )
+    if str(token_info.get("email_verified", "")).lower() != "true":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Your Google email address is not verified.",
         )
 
     # Validate Email & verification
