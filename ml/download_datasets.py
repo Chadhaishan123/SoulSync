@@ -83,8 +83,8 @@ def download_goemotions() -> None:
         f.write("to SoulSync's 6 core emotions (Happy, Sad, Anxious, Angry, Calm, Neutral)\n")
         f.write("plus additional fine-grained categories.\n")
 
-    print(f"\n  📁 Saved to: {outdir}")
-    print(f"  📄 Provenance: {outdir / 'PROVENANCE.md'}")
+    print(f"\n  [OK] Saved to: {outdir}")
+    print(f"  [OK] Provenance: {outdir / 'PROVENANCE.md'}")
 
 
 def download_emotion_dataset() -> None:
@@ -112,7 +112,7 @@ def download_emotion_dataset() -> None:
         split = ds[split_name]
         csv_path = outdir / f"{split_name}.csv"
         split.to_csv(str(csv_path), index=False)
-        print(f"  ✅ {split_name}: {len(split):,} examples → {csv_path.name}")
+        print(f"  [OK] {split_name}: {len(split):,} examples -> {csv_path.name}")
 
     label_names = ["sadness", "joy", "love", "anger", "fear", "surprise"]
     with open(outdir / "label_names.txt", "w") as f:
@@ -142,8 +142,8 @@ def download_emotion_dataset() -> None:
         f.write("| fear | Anxious |\n")
         f.write("| surprise | Neutral |\n")
 
-    print(f"\n  📁 Saved to: {outdir}")
-    print(f"  📄 Provenance: {outdir / 'PROVENANCE.md'}")
+    print(f"\n  [OK] Saved to: {outdir}")
+    print(f"  [OK] Provenance: {outdir / 'PROVENANCE.md'}")
 
 
 def print_summary() -> None:

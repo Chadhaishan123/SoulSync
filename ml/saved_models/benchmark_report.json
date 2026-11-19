@@ -1,0 +1,149 @@
+{
+  "timestamp": "2026-11-19T18:00:51Z",
+  "total_training_time_sec": 219.38,
+  "datasets_trained": {
+    "dair_ai_emotion": "20,000 labeled emotional reflections (train: 16k, val: 2k, test: 2k)",
+    "google_go_emotions": "54,263 labeled multi-emotion texts (train: 43,410, val: 5,426, test: 5,427)",
+    "studentlife_longitudinal": "3,430 daily behavioral/biometric records (49 cohorts x 70 days)"
+  },
+  "affective_nlp": {
+    "best_model": "Calibrated_LinearSVC",
+    "best_metrics": {
+      "test_accuracy": 0.8895,
+      "test_macro_f1": 0.8427,
+      "test_weighted_f1": 0.8896,
+      "train_time_sec": 5.28
+    },
+    "combined_74k_accuracy": 0.6808,
+    "combined_74k_weighted_f1": 0.6775,
+    "all_candidates": {
+      "Calibrated_LinearSVC": {
+        "test_accuracy": 0.8895,
+        "test_macro_f1": 0.8427,
+        "test_weighted_f1": 0.8896,
+        "train_time_sec": 5.28
+      },
+      "LogisticRegression_LBFGS": {
+        "test_accuracy": 0.8745,
+        "test_macro_f1": 0.8117,
+        "test_weighted_f1": 0.8724,
+        "train_time_sec": 19.12
+      },
+      "SGD_ModifiedHuber": {
+        "test_accuracy": 0.883,
+        "test_macro_f1": 0.8298,
+        "test_weighted_f1": 0.8828,
+        "train_time_sec": 3.71
+      },
+      "ComplementNaiveBayes": {
+        "test_accuracy": 0.8765,
+        "test_macro_f1": 0.8288,
+        "test_weighted_f1": 0.8752,
+        "train_time_sec": 0.13
+      },
+      "SoftVoting_Ensemble": {
+        "test_accuracy": 0.89,
+        "test_macro_f1": 0.8388,
+        "test_weighted_f1": 0.8893,
+        "train_time_sec": 30.71
+      }
+    }
+  },
+  "behavioral_ml": {
+    "trend_prediction": {
+      "best_model": "SoftVoting_Ensemble",
+      "best_metrics": {
+        "cv_weighted_f1": 0.7824,
+        "test_accuracy": 0.7631,
+        "test_macro_f1": 0.7351,
+        "test_weighted_f1": 0.7608
+      },
+      "all_candidates": {
+        "GradientBoosting": {
+          "cv_weighted_f1": 0.7669,
+          "test_accuracy": 0.7631,
+          "test_macro_f1": 0.7301,
+          "test_weighted_f1": 0.7575
+        },
+        "RandomForest_Tuned": {
+          "cv_weighted_f1": 0.7808,
+          "test_accuracy": 0.7571,
+          "test_macro_f1": 0.7339,
+          "test_weighted_f1": 0.7568
+        },
+        "ExtraTrees_Tuned": {
+          "cv_weighted_f1": 0.7747,
+          "test_accuracy": 0.7511,
+          "test_macro_f1": 0.7325,
+          "test_weighted_f1": 0.7532
+        },
+        "NeuralNet_MLP": {
+          "cv_weighted_f1": 0.7681,
+          "test_accuracy": 0.7601,
+          "test_macro_f1": 0.7266,
+          "test_weighted_f1": 0.7554
+        },
+        "SoftVoting_Ensemble": {
+          "cv_weighted_f1": 0.7824,
+          "test_accuracy": 0.7631,
+          "test_macro_f1": 0.7351,
+          "test_weighted_f1": 0.7608
+        }
+      }
+    },
+    "behavioral_clustering": {
+      "best_model": "KMeans_k4_plusplus",
+      "best_metrics": {
+        "silhouette_score": 0.3818,
+        "calinski_harabasz": 5476.59,
+        "davies_bouldin_lower_is_better": 1.0053
+      },
+      "all_candidates": {
+        "KMeans_k4_plusplus": {
+          "silhouette_score": 0.3818,
+          "calinski_harabasz": 5476.59,
+          "davies_bouldin_lower_is_better": 1.0053
+        },
+        "GaussianMixture_k4": {
+          "silhouette_score": 0.2629,
+          "calinski_harabasz": 3433.18,
+          "davies_bouldin_lower_is_better": 1.1593
+        },
+        "Agglomerative_Ward_k4": {
+          "silhouette_score": 0.3363,
+          "calinski_harabasz": 4994.96,
+          "davies_bouldin_lower_is_better": 1.0569
+        }
+      }
+    },
+    "anomaly_detection": {
+      "best_model": "IsolationForest_200",
+      "best_metrics": {
+        "roc_auc": 0.8826,
+        "f1_score": 0.4153,
+        "precision": 0.4153,
+        "recall": 0.4153
+      },
+      "all_candidates": {
+        "IsolationForest_200": {
+          "roc_auc": 0.8826,
+          "f1_score": 0.4153,
+          "precision": 0.4153,
+          "recall": 0.4153
+        },
+        "LocalOutlierFactor": {
+          "roc_auc": 0.6226,
+          "f1_score": 0.1924,
+          "precision": 0.2062,
+          "recall": 0.1803
+        },
+        "OneClassSVM_RBF": {
+          "roc_auc": 0.8093,
+          "f1_score": 0.3224,
+          "precision": 0.3224,
+          "recall": 0.3224
+        }
+      }
+    }
+  }
+}

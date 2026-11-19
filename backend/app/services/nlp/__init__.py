@@ -365,6 +365,71 @@ def _analyze_lexicon(text: str) -> Dict[str, Any]:
     }
 
 
+# ─────────────────────────────── Trained ML Pipeline (TF-IDF + Soft-Voting Ensemble)
+
+_trained_ml_pipeline = None
+_trained_ml_checked = False
+
+
+def _load_trained_ml_pipeline():
+    """Lazy-load the 85k-feature TF-IDF + Soft-Voting Ensemble trained on dair-ai/emotion + GoEmotions."""
+    global _trained_ml_pipeline, _trained_ml_checked
+    if _trained_ml_checked:
+        return _trained_ml_pipeline
+    _trained_ml_checked = True
+    try:
+        import joblib
+        model_path = Path(__file__).resolve().parents[4] / "ml" / "saved_models" / "emotion_nlp_pipeline.joblib"
+        if model_path.is_file():
+            _trained_ml_pipeline = joblib.load(model_path)
+            log.info("Loaded trained ML emotion pipeline from %s", model_path)
+    except Exception as exc:
+        log.warning("Could not load trained ML emotion pipeline: %s", exc)
+    return _trained_ml_pipeline
+
+
+def _analyze_trained_ml(text: str) -> Optional[Dict[str, Any]]:
+    """Fast (<3ms), low-RAM emotion & sentiment classification using the trained scikit-learn ensemble."""
+    pipeline = _load_trained_ml_pipeline()
+    if pipeline is None or not text or not text.strip():
+        return None
+    try:
+        start = time.perf_counter_ns()
+        probs = pipeline.predict_proba([text])[0]
+        classes = list(pipeline.classes_)
+        raw_emotions = {str(cls): float(prob) for cls, prob in zip(classes, probs)}
+        emotions = _to_soulsync_emotions(raw_emotions)
+        dominant = max(emotions, key=emotions.get)  # type: ignore
+        dominant_score = emotions[dominant]
+
+        pos_prob = emotions.get("Happy", 0.0) + 0.75 * emotions.get("Calm", 0.0)
+        neg_prob = emotions.get("Sad", 0.0) + emotions.get("Anxious", 0.0) + emotions.get("Angry", 0.0)
+        sentiment_score = round(float(max(-1.0, min(1.0, pos_prob - neg_prob))), 3)
+        sentiment_label = (
+            "positive" if sentiment_score > 0.15 else ("negative" if sentiment_score < -0.15 else "neutral")
+        )
+        sentiment_confidence = round(float(max(pos_prob, neg_prob, emotions.get("Neutral", 0.5))), 3)
+        elapsed = int((time.perf_counter_ns() - start) / 1_000_000)
+
+        return {
+            "sentiment_score": sentiment_score,
+            "sentiment_label": sentiment_label,
+            "sentiment_confidence": sentiment_confidence,
+            "emotions": emotions,
+            "dominant_emotion": dominant,
+            "dominant_emotion_score": dominant_score,
+            "keywords": _extract_keywords(text),
+            "themes": _extract_themes(text),
+            "summary": _extract_summary(text),
+            "engine": "ml-ensemble",
+            "model_version": "tfidf-softvoting-ensemble-v1 (dair-ai/emotion + GoEmotions)",
+            "processing_ms": elapsed,
+        }
+    except Exception as exc:
+        log.warning("Trained ML emotion inference failed: %s", exc)
+        return None
+
+
 # ─────────────────────────────── Public API
 
 def analyze_text(text: str, country_code: Optional[str] = None) -> Dict[str, Any]:
@@ -378,14 +443,17 @@ def analyze_text(text: str, country_code: Optional[str] = None) -> Dict[str, Any
     safety = safety_assess(text, country_code)
     safety_level = safety["level"]
 
-    # Choose engine
+    # Choose engine: Transformer -> Trained ML Ensemble -> Lexicon Fallback
+    result = None
     if _transformer_available:
         from app.core.config import settings
         if settings.ENABLE_TRANSFORMER_NLP:
             result = _analyze_transformer(text)
-        else:
-            result = _analyze_lexicon(text)
-    else:
+    if result is None or result.get("engine") == "lexicon":
+        ml_res = _analyze_trained_ml(text)
+        if ml_res is not None:
+            result = ml_res
+    if result is None:
         result = _analyze_lexicon(text)
 
     result["safety_level"] = safety_level
