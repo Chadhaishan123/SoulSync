@@ -11,7 +11,10 @@ interface AuthState {
   login: (email: string, password: string) => Promise<void>
   register: (name: string, email: string, password: string) => Promise<void>
   logout: () => void
-  loginWithGoogle: (credential: string) => Promise<void>
+  loginWithGoogle: (
+    credential: string,
+    firebaseProfile?: { email: string; name: string; uid: string }
+  ) => Promise<void>
   refreshUser: () => Promise<void>
 }
 
@@ -58,6 +61,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setUser(me)
     } catch {
+      try {
+        const fbRaw = localStorage.getItem("soulsync_firebase_session")
+        if (fbRaw) {
+          const fbMe = JSON.parse(fbRaw) as MeResponse
+          if (fbMe && fbMe.email) {
+            setUser(fbMe)
+            return
+          }
+        }
+      } catch {}
       clearTokens()
       setUser(null)
     } finally {
@@ -206,19 +219,82 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(me)
   }, [])
 
-  const loginWithGoogle = useCallback(async (credential: string) => {
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
-    const data = await api.auth.googleLogin(credential, tz)
-    setTokens(data.tokens.access_token, data.tokens.refresh_token)
-    const me = await api.user.getMe()
-    setUser(me)
-    try {
-      localStorage.setItem("soulsync_last_user", JSON.stringify({ name: me.name, email: me.email }))
-    } catch {}
-  }, [])
+  const loginWithGoogle = useCallback(
+    async (
+      credential: string,
+      firebaseProfile?: { email: string; name: string; uid: string }
+    ) => {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"
+      if (firebaseProfile && firebaseProfile.email) {
+        const cleanEmail = firebaseProfile.email.trim().toLowerCase()
+        const displayName =
+          firebaseProfile.name ||
+          cleanEmail.split("@")[0].charAt(0).toUpperCase() + cleanEmail.split("@")[0].slice(1)
+        const nowIso = new Date().toISOString()
+        const fbMe: MeResponse = {
+          id: 1,
+          name: displayName,
+          email: cleanEmail,
+          created_at: nowIso,
+          last_login_at: nowIso,
+          is_onboarded: true,
+          profile: {
+            user_id: 1,
+            timezone: tz,
+            wellness_goals: null,
+            reminder_hour: 20,
+            sleep_goal_minutes: 480,
+            location_enabled: false,
+            environment_enabled: false,
+            nlp_analysis_enabled: true,
+            notifications_enabled: true,
+            personalization_enabled: true,
+            last_latitude: null,
+            last_longitude: null,
+            last_city: null,
+            last_country_code: null,
+            location_updated_at: null,
+            onboarded_at: nowIso,
+            has_real_location: false,
+          },
+        }
+        setTokens(credential)
+        setUser(fbMe)
+        try {
+          localStorage.setItem("soulsync_firebase_session", JSON.stringify(fbMe))
+          localStorage.setItem("soulsync_last_user", JSON.stringify({ name: displayName, email: cleanEmail }))
+        } catch {}
+
+        // Sync with backend in background if awake
+        api.auth
+          .googleLogin(credential, tz)
+          .then(async (data) => {
+            setTokens(data.tokens.access_token, data.tokens.refresh_token)
+            const me = await api.user.getMe()
+            setUser(me)
+            localStorage.setItem("soulsync_firebase_session", JSON.stringify(me))
+          })
+          .catch(() => {})
+        return
+      }
+
+      const data = await api.auth.googleLogin(credential, tz)
+      setTokens(data.tokens.access_token, data.tokens.refresh_token)
+      const me = await api.user.getMe()
+      setUser(me)
+      try {
+        localStorage.setItem("soulsync_firebase_session", JSON.stringify(me))
+        localStorage.setItem("soulsync_last_user", JSON.stringify({ name: me.name, email: me.email }))
+      } catch {}
+    },
+    []
+  )
 
   const logout = useCallback(() => {
     clearTokens()
+    try {
+      localStorage.removeItem("soulsync_firebase_session")
+    } catch {}
     setUser(null)
   }, [])
 

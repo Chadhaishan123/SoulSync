@@ -125,8 +125,12 @@ export default function GoogleSignInButton({
       setLoading(true)
       try {
         const fbRes = await signInWithFirebaseGoogle()
-        await loginWithGoogle(fbRes.idToken)
-        toast.success("Signed in with Firebase Google Auth! Welcome 🧠")
+        await loginWithGoogle(fbRes.idToken, {
+          email: fbRes.email,
+          name: fbRes.name,
+          uid: fbRes.uid,
+        })
+        toast.success("Signed in with Google! Welcome 🧠")
         router.push("/dashboard")
       } catch (err: any) {
         console.error("Firebase Google Auth error:", err)
