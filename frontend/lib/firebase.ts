@@ -22,16 +22,16 @@ export const FIREBASE_CONFIG = {
   apiKey: (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "").trim().replace(/^["']|["']$/g, ""),
   authDomain:
     (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "").trim() ||
-    "soulsync-511804.firebaseapp.com",
+    "soulsync-b23fe.firebaseapp.com",
   projectId:
     (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "").trim() ||
-    "soulsync-511804",
+    "soulsync-b23fe",
   storageBucket:
     (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "").trim() ||
-    "soulsync-511804.firebasestorage.app",
+    "soulsync-b23fe.firebasestorage.app",
   messagingSenderId:
     (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "").trim() ||
-    "231866221016",
+    "30766783030",
   appId: (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "").trim(),
 }
 

@@ -245,8 +245,8 @@ def google_login(
     # or our Firebase project ID soulsync-511804).
     default_cid = "231866221016-rdpt228qmqcq0jmgr8h9qup8kcrbe6s8.apps.googleusercontent.com"
     configured_cid = (settings.GOOGLE_CLIENT_ID or "").strip().strip('"').strip("'")
-    firebase_pid = (settings.FIREBASE_PROJECT_ID or "soulsync-511804").strip()
-    allowed_cids = {default_cid, firebase_pid, "soulsync-511804"}
+    firebase_pid = (settings.FIREBASE_PROJECT_ID or "soulsync-b23fe").strip()
+    allowed_cids = {default_cid, firebase_pid, "soulsync-b23fe", "soulsync-511804"}
     if configured_cid and configured_cid.endswith(".apps.googleusercontent.com"):
         allowed_cids.add(configured_cid)
     if token_info.get("aud") not in allowed_cids:
