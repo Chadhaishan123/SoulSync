@@ -19,25 +19,13 @@ declare global {
 }
 
 export const FIREBASE_CONFIG = {
-  apiKey:
-    (process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "").trim().replace(/^["']|["']$/g, "") ||
-    "AIzaSyC2N1y6E01Ga6EhM40Z5Nj6_EX2laMAMvo",
-  authDomain:
-    (process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "").trim() ||
-    "soulsync-b23fe.firebaseapp.com",
-  projectId:
-    (process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "").trim() ||
-    "soulsync-b23fe",
-  storageBucket:
-    (process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "").trim() ||
-    "soulsync-b23fe.firebasestorage.app",
-  messagingSenderId:
-    (process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "").trim() ||
-    "30766783030",
-  appId:
-    (process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "").trim() ||
-    "1:30766783030:web:775be2db25e7fcc6a89697",
-  measurementId: "G-QWMDER9V2W",
+  apiKey: "AIzaSyC2N1y6E01Ga6EhM40Z5Nj6_EXZlaMAMvo",
+  authDomain: "soulsync-b23fe.firebaseapp.com",
+  projectId: "soulsync-b23fe",
+  storageBucket: "soulsync-b23fe.firebasestorage.app",
+  messagingSenderId: "30766783030",
+  appId: "1:30766783030:web:775be2db25e7fcc6a89697",
+  measurementId: "G-QWWDER9V2W",
 }
 
 export function isFirebaseConfigured(): boolean {

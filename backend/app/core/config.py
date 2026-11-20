@@ -154,7 +154,7 @@ class Settings(BaseSettings):
     TERRA_API_KEY: str = ""
     GOOGLE_CLIENT_ID: str = "231866221016-rdpt228qmqcq0jmgr8h9qup8kcrbe6s8.apps.googleusercontent.com"
     FIREBASE_PROJECT_ID: str = "soulsync-b23fe"
-    FIREBASE_API_KEY: str = "AIzaSyC2N1y6E01Ga6EhM40Z5Nj6_EX2laMAMvo"
+    FIREBASE_API_KEY: str = "AIzaSyC2N1y6E01Ga6EhM40Z5Nj6_EXZlaMAMvo"
     FIREBASE_AUTH_DOMAIN: str = "soulsync-b23fe.firebaseapp.com"
 
     # ------------------------------------------------------- geo (no default)
